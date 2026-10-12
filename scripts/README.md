@@ -81,6 +81,14 @@ In particular:
 - A captured sequence must not be interpreted as a PS28 response without supporting evidence.
 - The script does not implement active bus communication or the complete SmartSpeaker protocol.
 
+### Burst Detection and Timing
+
+The script uses a 3 ms interval without observed GPIO edge events to determine when to decode a captured burst.
+
+This is an implementation setting, not a verified SmartSpeaker protocol frame boundary.
+
+The printed timestamps originate from GPIO edge-event timestamps. The optional `IDLE` annotation is calculated from the interval between decoded byte start timestamps and is an aid for investigation, not proof of a protocol-defined idle period.
+
 The decoder and protocol analysis may evolve as additional measurements become available.
 
 ## Development Status
