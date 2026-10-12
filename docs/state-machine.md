@@ -2,99 +2,116 @@
 
 ## 1. Purpose
 
-The Bose-Pi software needs a predictable way to manage the relationship between the Raspberry Pi, the SmartSpeaker Bus interface, and the audio service.
+The Bose-Pi software combines network audio playback, UART communication, and a custom interface to the Bose SmartSpeaker Bus.
 
-An explicit state machine is intended to make startup, hardware detection, communication handling, and error recovery easier to understand and test.
+The state machine is intended to coordinate these components without confusing audio-service availability, UART readiness, and successful communication with the Bose hardware.
 
-This document describes the proposed control model. It does not claim that all states and transitions have already been implemented.
+This document describes the current control design and distinguishes established component behaviour from transitions that still require validation.
 
-## 2. Design Goals
+## 2. Verified Components
 
-The state machine should:
+The following components have been established during development:
 
-- Keep hardware detection separate from audio-service management.
-- Avoid transmitting protocol messages before the communication interface is ready.
-- Handle the absence of the Bose system without uncontrolled retries.
-- Make errors and recovery paths explicit.
-- Provide enough diagnostic information to understand why a transition occurred.
+- The Raspberry Pi 5 provides the computing platform.
+- Shairport Sync 5.5.2 provides the AirPlay-compatible audio service.
+- ALSA routes audio to the INNO-MAKER Digi One.
+- The Digi One provides the S/PDIF digital audio output.
+- The UART configuration used for bus investigation is `/dev/ttyAMA0`, GPIO14 TX and GPIO15 RX.
+- The passive sniffer is configured for 4800 baud, 8N1, and can decode complete data bursts.
 
-## 3. Proposed States
+These results establish individual parts of the system. They do not prove that the complete Bose control protocol or final state machine has been implemented.
 
-The following states provide an initial conceptual model. Their exact names and transition conditions may change as the implementation develops.
+## 3. State-Machine Responsibilities
 
-| State | Purpose |
+The intended control logic must keep the following responsibilities separate:
+
+1. Application initialization and configuration.
+2. Hardware-interface readiness.
+3. UART initialization and communication handling.
+4. SmartSpeaker Bus protocol processing.
+5. Audio-service readiness.
+6. Error reporting and recovery.
+
+The final implementation should make transitions explicit and provide useful diagnostic information when a component is unavailable.
+
+## 4. Proposed Operational States
+
+The following states are a design model. They are not a claim that every state already exists in the software.
+
+| State | Intended responsibility |
 |---|---|
-| `INITIALIZING` | Initialize software components and configuration. |
-| `WAITING_FOR_HARDWARE` | Wait for the required hardware conditions to be satisfied. |
-| `INTERFACE_READY` | Prepare the UART and electrical interface for communication. |
-| `COMMUNICATING` | Perform the bus operations supported by the current implementation. |
-| `AUDIO_READY` | Indicate that the audio service is available according to the implemented readiness checks. |
-| `ERROR` | Record a failure that prevents normal operation. |
+| `INITIALIZING` | Load configuration and initialize application components. |
+| `WAITING_FOR_HARDWARE` | Wait for required hardware conditions. |
+| `INTERFACE_READY` | Prepare the UART and electrical interface. |
+| `BUS_MONITORING` | Observe bus traffic where passive monitoring is enabled. |
+| `BUS_COMMUNICATION` | Perform protocol operations supported by the implementation. |
+| `AUDIO_READY` | Indicate that the configured audio service is available. |
+| `ERROR` | Record an error that prevents the affected operation from continuing normally. |
 
-These states are a starting point for the design, not a claim that every state has already been implemented or experimentally validated.
+The final state names and transitions must be reconciled with the actual source code and verified hardware behaviour.
 
-## 4. Hardware Detection
+## 5. Hardware Detection
 
-The software architecture considers a GPIO input as a possible means of detecting whether the Bose connection is present.
+A GPIO input has been considered for detecting the presence of the Bose connection.
 
-The electrical polarity, active level, pull-up or pull-down arrangement, and precise meaning of this signal must be defined from the actual circuit and validated on the hardware.
+Its electrical polarity, active level, pull-up or pull-down arrangement, and precise meaning must be established from the actual circuit.
 
-Hardware presence must not automatically be treated as proof that the SmartSpeaker Bus protocol is working.
+Detecting the electrical presence of a connection must not be treated as proof that the Bose protocol is working.
 
-## 5. UART and Bus Communication
+## 6. UART and Bus Handling
 
-Before bus communication is enabled, the software should initialize the selected UART and its configuration.
+The bus investigation uses `/dev/ttyAMA0` at 4800 baud, 8N1.
 
-The UART loopback test established that the tested transmit and receive path could exchange bytes successfully after correcting the test wiring.
+The passive sniffer is designed to observe traffic without actively transmitting commands.
 
-Loopback success does not establish that the Bose protocol is operational. Communication with the Bose hardware requires separate validation.
+Protocol communication must be kept separate from passive monitoring. Transmitting a command, receiving bytes, and interpreting a valid protocol response are distinct events.
 
-The bus handler should eventually distinguish between:
+The final state machine must not report successful Bose communication merely because the UART opened successfully or bytes were received.
 
-- Successful transmission.
-- Received data.
-- Protocol-level responses, where applicable.
-- Communication timeouts.
-- Unexpected or invalid data.
+## 7. Audio-Service Handling
 
-The actual message formats and response requirements must be derived from verified protocol observations.
+The configured audio path is:
 
-## 6. Audio Service Management
+`AirPlay 2 → Shairport Sync 5.5.2 → ALSA → INNO-MAKER Digi One → S/PDIF`
 
-The intended system uses an AirPlay-compatible audio service on the Raspberry Pi.
+Audio-service readiness should be managed independently from SmartSpeaker Bus readiness.
 
-The state machine should manage audio-service readiness separately from bus communication. A running service does not necessarily mean that the Bose system is ready, and a detected Bose connection does not necessarily mean that audio streaming is available.
+A running audio service does not prove that the Bose subwoofer is ready to reproduce audio. Conversely, a detected Bose connection does not prove that the audio service is available.
 
-The exact startup sequence and dependencies remain to be defined and tested.
-
-## 7. Error Handling and Recovery
+## 8. Error Handling
 
 Potential error conditions include:
 
+- Configuration or initialization failure.
 - UART initialization failure.
 - Missing or unavailable hardware.
-- Communication timeout.
-- Unexpected protocol data.
+- Bus communication timeout.
+- Unexpected or invalid protocol data.
 - Audio-service startup failure.
 
-The implementation should record useful diagnostic information and avoid uncontrolled retry loops.
+The implementation should record the affected component and relevant diagnostic information.
 
-Recovery behaviour should be added only after the expected hardware and protocol behaviour is sufficiently understood.
+Recovery and retry behaviour must be based on the actual protocol requirements and should avoid uncontrolled retry loops.
 
-## 8. Testing Strategy
+## 9. Validation Strategy
 
-The state machine should be tested incrementally.
+The control design should be validated in stages:
 
-1. Verify software initialization without the Bose system connected.
-2. Verify hardware detection against the actual electrical interface.
-3. Verify UART initialization and loopback independently.
-4. Test communication with the Bose hardware.
-5. Validate state transitions using repeatable observations.
-6. Test audio-service startup and failure handling.
-7. Test the complete system from startup to audio playback.
+1. Verify application initialization.
+2. Verify the configured audio service independently.
+3. Verify UART initialization.
+4. Validate passive bus capture.
+5. Investigate protocol messages against the real Bose hardware.
+6. Validate any required active communication.
+7. Confirm state transitions under normal and failure conditions.
+8. Test the complete startup and playback sequence.
 
-Each test should distinguish between what was directly observed and what was inferred.
+Each test must distinguish direct observations from interpretations.
 
-## 9. Current Status
+## 10. Current Status
 
-This document defines an initial design model. The final state definitions, GPIO behaviour, transition rules, and audio-service dependencies must be reconciled with the actual implementation before being described as complete.
+The Raspberry Pi audio-output path and the UART sniffer configuration have been established.
+
+The complete Bose SmartSpeaker Bus protocol, the required initialization sequence, the final hardware-detection behaviour, and the complete state-machine transitions remain to be validated.
+
+The state machine should be considered complete only when its implementation and its documented transitions agree with repeatable test results.
