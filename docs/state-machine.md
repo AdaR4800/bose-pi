@@ -60,13 +60,24 @@ Detecting the electrical presence of a connection must not be treated as proof t
 
 ## 6. UART and Bus Handling
 
-The bus investigation uses `/dev/ttyAMA0` at 4800 baud, 8N1.
+The active UART interface used for bus investigation is `/dev/ttyAMA0` at 4800 baud, 8N1.
 
-The passive sniffer is designed to observe traffic without actively transmitting commands.
+The passive sniffer is a separate observation path. It captures bus signal edges through GPIO16 and reconstructs bytes without transmitting commands.
 
-Protocol communication must be kept separate from passive monitoring. Transmitting a command, receiving bytes, and interpreting a valid protocol response are distinct events.
+The following events must be treated as distinct:
 
-The final state machine must not report successful Bose communication merely because the UART opened successfully or bytes were received.
+1. **Transmission:** The Raspberry Pi sends bytes through its UART transmit path.
+2. **UART reception:** Bytes are received through the UART receive path. Depending on the electrical interface and bus behaviour, these may include transmitted data echoed back by the bus.
+3. **Passive observation:** The GPIO16 sniffer records bus activity independently of the UART.
+4. **Protocol response:** A sequence is identified as a response only when supported by repeatable observations and sufficient evidence to distinguish it from an echo or unrelated bus traffic.
+
+Receiving bytes after a transmission does not, by itself, prove that the Bose PS28 generated a response. Likewise, a matching byte sequence does not establish its sender or protocol meaning.
+
+For example, the observation of `01 00 00 01` during transmission and `01 00 00 01 00` in the UART receive data does not establish that the final `00` is a PS28 response.
+
+Further investigation should correlate UART transmit data, UART receive data, and passive sniffer observations, including their timing. Any conclusions about echo behaviour, response timing, or protocol semantics must be based on repeatable measurements.
+
+Protocol communication must remain separate from passive monitoring. The state machine must not report successful Bose communication merely because the UART opened successfully or bytes were received.
 
 ## 7. Audio-Service Handling
 
