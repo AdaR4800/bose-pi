@@ -116,7 +116,15 @@ The project does not claim to reproduce the complete Bose protocol or all origin
 
 ## Acknowledgements
 
-The investigation builds on publicly available Bose service documentation and patent material, together with community reverse-engineering work, including Kenneract's Bose-Reverse-Engineering repository.
+**Kenneract — [Bose-Reverse-Engineering](https://github.com/Kenneract/Bose-Reverse-Engineering)**
+
+This project builds on the valuable reverse-engineering work documented by Kenneract on the Bose 3·2·1 GS Series III system, particularly the investigation of the Bose SmartSpeaker protocol.
+
+Kenneract's research provides an important technical reference for understanding the bus architecture, serial communication, and observed protocol behaviour. It has informed the direction of the Bose-Pi investigation and helps guide our own experiments.
+
+Bose-Pi is an independent project focused on restoring a surviving Bose Lifestyle AV18/PS28 installation. Our hardware, measurements, and implementation are documented separately, and protocol assumptions are verified against our own hardware wherever possible.
+
+We gratefully acknowledge Kenneract's work and contribution to the Bose reverse-engineering community.
 
 AI-assisted research and development tools have also been used during the engineering process.
 
