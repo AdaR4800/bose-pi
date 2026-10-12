@@ -52,11 +52,15 @@ The final state names and transitions must be reconciled with the actual source 
 
 ## 5. Hardware Detection
 
-A GPIO input has been considered for detecting the presence of the Bose connection.
+Hardware detection is a separate responsibility from passive bus monitoring.
 
-Its electrical polarity, active level, pull-up or pull-down arrangement, and precise meaning must be established from the actual circuit.
+A GPIO input has been considered for detecting the presence of the Bose connection. Its electrical polarity, active level, pull-up or pull-down arrangement, and precise meaning must be established from the actual circuit and verified through testing.
 
-Detecting the electrical presence of a connection must not be treated as proof that the Bose protocol is working.
+The passive sniffer on GPIO16 observes bus signal transitions. It does not, by itself, establish whether the Bose hardware is present or operational.
+
+Detecting an electrical connection or observing bus activity must not be treated as proof that the Bose protocol is working.
+
+The final hardware-detection mechanism remains to be validated.
 
 ## 6. UART and Bus Handling
 
