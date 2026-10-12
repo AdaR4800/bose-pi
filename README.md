@@ -64,11 +64,11 @@ The distinction between experimentally verified behaviour, documented technical 
 
 Detailed documentation will be added here as the project evolves.
 
-- [Project architecture](docs/architecture.md) — planned.
-- [SmartSpeaker Bus investigation](docs/smartspeaker-bus.md) — planned.
-- [Software state machine](docs/state-machine.md) — planned.
-- [Hardware and construction](docs/hardware.md) — planned.
-- [3D-printed enclosure](docs/enclosure.md) — planned.
+- [Project architecture](docs/architecture.md) - planned.
+- [SmartSpeaker Bus investigation](docs/smartspeaker-bus.md) - planned.
+- [Software state machine](docs/state-machine.md) - planned.
+- [Hardware and construction](docs/hardware.md) - planned.
+- [3D-printed enclosure](docs/enclosure.md) - planned.
 
 ## Why Bose-Pi?
 
