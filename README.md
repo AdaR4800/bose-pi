@@ -95,11 +95,14 @@ The original Bose central receiver is no longer available. The surviving install
 
 ## Documentation
 
-- [System Architecture](docs/architecture.md)
-- [SmartSpeaker Bus Investigation](docs/smartspeaker-bus.md)
-- [Software State Machine](docs/state-machine.md) — design documentation; implementation status to be verified.
-- [Hardware and Construction](docs/hardware.md) — planned.
-- [3D-Printed Enclosure](docs/enclosure.md) — planned.
+The technical documentation is organized in the [`docs`](docs/README.md) directory.
+
+- [Documentation Index](docs/README.md) — Overview of all technical documents.
+- [System Architecture](docs/architecture.md) — Overall system design and component interactions.
+- [Hardware](docs/hardware.md) — Hardware components, interfaces, UART configuration, and electrical design considerations.
+- [SmartSpeaker Bus Investigation](docs/smartspeaker-bus.md) — Bus observations, protocol investigation, and current findings.
+- [Software State Machine](docs/state-machine.md) — Planned control logic and the investigation of PS28 behaviour.
+- [Enclosure Design](docs/enclosure.md) — Mechanical integration and the planned 3D-printed enclosure.
 
 ## Development Principles
 
