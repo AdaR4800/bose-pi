@@ -128,7 +128,7 @@ The current project design specifies the following connections:
 | Bose PS28 J1 pin 1 | 1 kΩ series resistor to Raspberry Pi UART RX, GPIO15 |
 | Decoupling capacitor | 100 nF between SN74HC07N VCC and GND |
 
-Unused buffer inputs must be held at defined logic levels. Unused outputs are left unconnected.
+Unused buffer inputs must be held at defined logic levels (connected to GND). Unused outputs are left unconnected.
 
 ### 8.2 Bus Pull-Up
 
