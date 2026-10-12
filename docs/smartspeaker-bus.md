@@ -2,117 +2,140 @@
 
 ## 1. Purpose
 
-The Bose SmartSpeaker Bus is the control communication interface between the original Bose Lifestyle receiver and the associated speaker system.
+Bose-Pi investigates the control communication between the original Bose Lifestyle receiver and the associated speaker system.
 
-For Bose-Pi, the objective is to understand and implement the subset of this interface required to operate a single existing Bose speaker system without its original central receiver.
+The objective is to understand and implement the functionality required to operate one surviving Bose speaker installation without its original central receiver.
 
-The implementation does not aim to reproduce every feature of the original Bose communication architecture.
+The project does not attempt to reproduce every feature of the original Bose communication architecture.
 
 ## 2. Research Sources
 
-The investigation uses several sources of information:
+The investigation draws on:
 
-- Bose service documentation and circuit diagrams available online.
-- Publicly available Bose patent material describing aspects of the SmartSpeaker Bus hardware and communication architecture.
+- Publicly available Bose service documentation and circuit diagrams.
+- Bose patent material describing aspects of the SmartSpeaker Bus hardware and communication architecture.
 - Community reverse-engineering work, including Kenneract's Bose-Reverse-Engineering repository.
-- Experimental observations and repeatable tests performed as part of Bose-Pi.
+- Measurements, serial captures, and repeatable experiments performed during Bose-Pi development.
 
-Patent descriptions and observations from other Bose installations are treated as useful references, not as proof that every implementation detail is identical on the hardware investigated here.
+Patent descriptions and findings from other installations provide useful reference material. They are not automatically treated as proof of the behaviour of the hardware investigated here.
 
-## 3. Separate Audio and Control Paths
+## 3. Separate Signal Paths
 
-The receiver-to-subwoofer connection serves two distinct purposes.
+The receiver-to-subwoofer connection carries two distinct types of signals.
 
 ### 3.1 Digital Audio
 
 The audio path uses an S/PDIF-based digital interface.
 
-Bose-Pi generates digital audio using an INNO-MAKER Digi One HAT and feeds it to the Bose system.
+Bose-Pi generates digital audio using an INNO-MAKER Digi One HAT. The Raspberry Pi audio configuration uses Shairport Sync and ALSA to provide the digital output.
 
-### 3.2 Control Communication
+### 3.2 SmartSpeaker Bus
 
-The SmartSpeaker Bus provides a separate control communication path.
+The SmartSpeaker Bus is a separate control communication path.
 
-The Raspberry Pi requires an appropriate electrical interface to communicate with this bus. The custom interface hardware is documented separately in the hardware documentation.
+Bose-Pi investigates this interface independently from the audio path. Correct digital audio output alone does not establish that the required control protocol is working.
 
-## 4. Protocol Investigation
+## 4. Serial Configuration
 
-The protocol investigation focuses on:
+The current working configuration for the bus investigation is:
 
-- Electrical characteristics of the bus.
-- Serial communication parameters.
-- Captured bytes and frame interpretation.
-- Differences between patent descriptions and observed hardware behaviour.
-- The minimum communication required for the intended single-system setup.
+| Parameter | Value |
+|---|---|
+| Raspberry Pi | Raspberry Pi 5 |
+| UART device | `/dev/ttyAMA0` |
+| TX | GPIO14, physical pin 8 |
+| RX | GPIO15, physical pin 10 |
+| Baud rate | 4800 |
+| Data bits | 8 |
+| Parity | None |
+| Stop bits | 1 |
+| Framing | 8N1 |
 
-Kenneract's reverse-engineering work reports differences between documented behaviour and observations from real hardware, including baud-rate differences.
+The baud rate reflects the current findings from the Bose-Pi investigation. It is not interchangeable with the baud rates used during unrelated UART experiments.
 
-Consequently, protocol parameters must be supported by measurements or successful tests on the relevant hardware rather than copied uncritically from a patent or another implementation.
+## 5. Passive Sniffer
 
-## 5. UART Development Environment
+The passive sniffer is intended to observe bus traffic without actively transmitting commands.
 
-The development platform used for the initial serial experiments was a Raspberry Pi 5 running Debian GNU/Linux 13 (trixie).
+It uses serial reception configured for 4800 baud, 8N1, and supports decoding complete data bursts.
 
-The recorded environment included:
+Captured bytes and their interpretation are kept separate. A byte sequence can be recorded with confidence even when its protocol meaning or sender is not yet fully established.
 
-- Raspberry Pi 5 Model B, Revision 1.0.
-- Linux kernel 6.18.50+rpt-rpi-2712.
-- Python 3.13.5.
-- PySerial 3.5.
+The passive sniffer is an observation tool; it does not, by itself, prove that the Raspberry Pi can successfully control the Bose system.
 
-The serial configuration and GPIO assignments are documented in the project development notes. They should be checked against the current configuration before being treated as final deployment settings.
+## 6. Observed Data
 
-## 6. UART Loopback Testing
+The following byte sequence has been used during sniffer validation:
 
-A UART loopback test was used to validate the Raspberry Pi's serial transmit and receive path.
+`55 00 FF A5 0B`
 
-The received sequence matched the transmitted sequence.
+The sequence is recorded as captured data. Its protocol meaning must be established independently.
 
-This established that the tested UART path could transmit and receive data correctly under the loopback test conditions. It did not, by itself, establish successful communication with the Bose SmartSpeaker Bus.
+A separate protocol observation recorded during development is:
 
-## 7. Baud Rate
+- Transmitted sequence: `01 00 00 01`
+- Received sequence: `01 00 00 01 00`
 
-A baud rate of 4800 baud is the current working hypothesis for the Bose SmartSpeaker Bus, based on the measurements made during this project.
+The final `00` has been interpreted as a possible response from the Bose system. This interpretation remains provisional until the sender, message framing, and protocol meaning are confirmed through repeatable tests.
 
-The investigation also considered 19200 baud during the Raspberry Pi UART experiments.
+These observations must not be treated as proof that the complete SmartSpeaker Bus protocol has been decoded.
 
-These two values must not be confused: testing a UART at a particular baud rate is not sufficient evidence that the Bose bus uses that rate.
+## 7. Patent Descriptions and Real Hardware
 
-The final protocol configuration must be supported by successful communication tests with the Bose hardware.
+The publicly available patent material describes a communication architecture with capabilities beyond the requirements of the Bose-Pi single-system installation.
+
+For example, the patent material discusses master-initiated polling and the reporting of changes made at a speaker back to the central unit.
+
+Bose-Pi focuses on the subset of functionality required by the surviving installation. Features that are unnecessary for this use case are not automatically included in the implementation scope.
+
+Community reverse-engineering work has also reported differences between patent descriptions and observed hardware behaviour, including baud-rate differences.
+
+For this reason, protocol parameters and message semantics must be based on the relevant hardware and repeatable observations.
 
 ## 8. Electrical Interface
 
-The Raspberry Pi GPIO interface operates at 3.3 V logic levels.
+The Raspberry Pi uses 3.3 V GPIO logic. An appropriate electrical interface is required between the GPIO and the Bose bus.
 
-The SmartSpeaker Bus requires an appropriate electrical interface between the Raspberry Pi and the Bose hardware. A custom circuit using an SN74HC07 open-collector buffer is part of the planned interface architecture.
+The Bose-Pi hardware design includes an SN74HC07 open-collector buffer as part of the interface investigation.
 
-The circuit design, supply voltage, pull-up arrangement, and verified electrical characteristics belong in the hardware documentation. They must be based on the component data sheet and the actual circuit implementation.
+The actual circuit, supply voltage, pull-up arrangement, and resulting bus levels must be documented against the final schematic and component data sheet.
 
-The Raspberry Pi GPIO pins must not be connected directly to an electrically incompatible bus.
+The GPIO must not be connected directly to a bus whose electrical characteristics have not been verified as compatible.
 
-## 9. Software Design
+## 9. Software Responsibilities
 
-The software implementation is intended to separate:
+The software design separates:
 
 - UART access.
-- Byte capture and decoding.
-- Protocol handling.
-- State-machine logic.
-- Hardware and service status.
+- Passive data capture.
+- Byte and burst decoding.
+- Protocol interpretation.
+- Control-state management.
+- Hardware and service diagnostics.
 
-Captured data should remain distinguishable from interpreted protocol messages. This separation makes it easier to revisit assumptions when new measurements become available.
+This separation allows the protocol model to evolve as additional evidence becomes available.
 
-The detailed state machine is documented separately in `state-machine.md`.
+The proposed software control model is described in [state-machine.md](state-machine.md).
 
-## 10. Current Findings and Limitations
+## 10. Current Findings
 
-The following findings have been established during development:
+The current investigation establishes the following working basis:
 
-- The Bose connection contains separate digital-audio and control paths.
-- The Raspberry Pi UART loopback test succeeded (after correcting the jumper wiring).
-- A baud rate of 4800 baud is the current working hypothesis for the Bose bus.
-- Patent descriptions and real-hardware observations may differ.
+- Digital audio and control communication are separate paths.
+- The UART configuration for the bus investigation is 4800 baud, 8N1.
+- The passive sniffer can decode complete data bursts.
+- Captured byte sequences are available for further protocol analysis.
+- Some message interpretations remain provisional.
 
-These findings do not, by themselves, establish that the complete Bose SmartSpeaker protocol has been implemented.
+The complete initialization sequence, message semantics, required responses, and final control behaviour remain to be validated against the actual Bose hardware.
 
-Further protocol details should be added only when supported by captured data, documentation, or repeatable hardware tests.
+## 11. Reporting Further Findings
+
+Future protocol findings should record:
+
+1. The hardware and software configuration used.
+2. The direction of observation, where known.
+3. The exact captured or transmitted bytes.
+4. The conditions under which the observation occurred.
+5. Whether the result was repeatable.
+6. Which conclusions are measured facts and which remain interpretations.
