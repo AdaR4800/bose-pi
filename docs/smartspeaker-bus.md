@@ -14,8 +14,10 @@ The investigation draws on:
 
 - Publicly available Bose service documentation and circuit diagrams.
 - Bose patent material describing aspects of the SmartSpeaker Bus hardware and communication architecture.
-- Community reverse-engineering work, including Kenneract's Bose-Reverse-Engineering repository.
 - Measurements, serial captures, and repeatable experiments performed during Bose-Pi development.
+- Community reverse-engineering work by Kenneract, especially the [Bose-Reverse-Engineering repository](https://github.com/Kenneract/Bose-Reverse-Engineering) and its `SmartSpeakerProtocol.md` documentation.
+
+Kenneract's findings are an important reference for this investigation, not a complete specification for the AV18/PS28 installation. Differences between systems and individual observations must be evaluated against the Bose-Pi hardware and repeatable measurements.
 
 Patent descriptions and findings from other installations provide useful reference material. They are not automatically treated as proof of the behaviour of the hardware investigated here.
 
