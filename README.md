@@ -2,81 +2,120 @@
 
 **Giving a classic Bose Lifestyle sound system a second life with a Raspberry Pi.**
 
-A little reverse engineering, a custom hardware interface, and a stubborn refusal to throw away good speakers.
+An independent hardware and software reverse-engineering project to restore a Bose Lifestyle AV18/PS28 speaker installation using modern AirPlay audio and a custom SmartSpeaker Bus interface.
+
+> Keep the speakers. Replace the brain. Let the music play again.
 
 ## The Story
 
-About twenty years ago, when we renovated our house, we invested in a Bose Lifestyle AV18 home cinema system. The installation included five satellite speakers, a subwoofer, and a central receiver. The speakers were permanently wired into the house and mounted high on the walls, providing an elegant surround sound setup.
+About twenty years ago, we installed a Bose Lifestyle AV18 home cinema system in our house. The installation included five satellite speakers, a subwoofer, and a central receiver. The speakers were permanently wired into the house and mounted high on the walls.
 
-The system worked beautifully for more than a decade. An Apple AirPort Express, connected through its optical digital output, made it possible to stream music to the Bose receiver.
+An Apple AirPort Express, connected through its optical digital output, later made it possible to stream music to the Bose receiver.
 
-Then a thunderstorm changed everything.
+The system worked for more than a decade. Then an indirect lightning strike destroyed the central receiver beyond repair. The speakers, subwoofer, and in-wall cabling survived, but without the receiver, the installation became unusable.
 
-An indirect lightning strike destroyed the AV18 receiver beyond repair. The speakers, subwoofer, and in-wall cabling survived, but without the central unit, the entire system became unusable.
+Replacing everything seemed unnecessary. The speakers were still perfectly good, and our listening habits had changed.
 
-Replacing everything seemed unnecessary. The speakers were still perfectly good, and our listening habits had changed considerably over the years.
+Could a Raspberry Pi replace the missing electronics and bring the system back to life?
 
-The question was simple:
+That question became Bose-Pi.
 
-**Could a Raspberry Pi replace the missing receiver and bring the system back to life?**
+## Project Goals
 
-## The Idea
+The project aims to restore the essential functionality of the surviving Bose speaker installation without recreating the entire original receiver.
 
-The goal is to turn the existing Bose installation into a modern network audio system, with AirPlay as the intended way to stream music from an iPhone.
+The main objectives are:
 
-Instead of rebuilding the complete original receiver, this project focuses on the functions we actually need:
+- Provide network audio playback through AirPlay 2.
+- Generate digital audio using an INNO-MAKER Digi One HAT.
+- Investigate and implement the Bose SmartSpeaker Bus interface.
+- Develop reliable control software for the Raspberry Pi.
+- Build a compact hardware assembly and a custom 3D-printed enclosure.
+- Document the findings so that others can reproduce and understand the work.
 
-- Digital audio output through S/PDIF.
-- Communication with the Bose subwoofer over the SmartSpeaker Bus.
-- A dedicated hardware interface between the Raspberry Pi and the Bose system.
-- Reliable software control using an explicit state machine.
-- A compact, custom-built enclosure.
+## Current Status
 
-## The Technical Challenge
+### Verified: Digital Audio
 
-The Bose receiver communicates with the subwoofer through two distinct signal paths:
+The following audio path is operational:
 
-- **Digital audio:** an S/PDIF-based connection carrying the audio signal.
-- **SmartSpeaker Bus:** a separate communication interface used for system control.
+`AirPlay 2 → Shairport Sync 5.5.2 → ALSA → INNO-MAKER Digi One → S/PDIF`
 
-Publicly available service documentation and patent material provide a starting point for understanding the hardware. Community reverse-engineering work, including Kenneract's Bose-Reverse-Engineering project, provides additional insights into the protocol and its real-world behaviour.
+Shairport Sync runs as a system service. The configured ALSA device is `iec958:sndallodigione`. The Digi One generates the optical digital audio signal.
 
-The implementation is based on investigation and testing rather than assuming that every detail in a patent matches the hardware.
+This verifies the Raspberry Pi audio-output path. Successful playback through the original Bose subwoofer still depends on validating the complete interface and system behaviour.
+
+### Verified: Raspberry Pi UART
+
+The development platform is a Raspberry Pi 5 running Debian GNU/Linux 13 (trixie).
+
+The UART interface used for the Bose bus investigation is:
+
+- Device: `/dev/ttyAMA0`
+- TX: GPIO14, physical pin 8
+- RX: GPIO15, physical pin 10
+
+The passive sniffer is configured for 4800 baud, 8 data bits, no parity, and 1 stop bit (8N1). The implementation supports decoding complete data bursts.
+
+### Verified: Passive Sniffer
+
+The sniffer is designed to observe bus traffic without actively transmitting commands.
+
+A captured byte sequence used during sniffer validation is:
+
+`55 00 FF A5 0B`
+
+Captured bytes are evidence of observed traffic; their protocol meaning must be established separately.
+
+### In Progress: SmartSpeaker Bus
+
+The Bose SmartSpeaker Bus is a separate control path from the digital audio connection.
+
+Publicly available service documentation, patent material, and community reverse-engineering work provide useful starting points. The actual protocol must nevertheless be validated against the relevant hardware.
+
+The complete PS28 initialization sequence, message semantics, and required state transitions remain under investigation.
+
+### In Progress: Control Software
+
+The software architecture is intended to separate UART access, protocol handling, hardware detection, and audio-service management.
+
+The final state machine will be documented against the actual implementation and verified behaviour rather than assumed protocol functionality.
 
 ## Hardware
 
-The current hardware concept includes:
+The current design uses:
 
 - Raspberry Pi 5.
 - INNO-MAKER Digi One HAT for S/PDIF digital audio.
-- A custom SmartSpeaker Bus interface built on a prototype breakout board.
-- A purpose-designed, 3D-printed enclosure.
+- Custom SmartSpeaker Bus interface circuitry.
+- A prototype breakout board for the bus interface.
+- A planned custom 3D-printed enclosure.
 
-## Project Status
-
-Bose-Pi is an ongoing engineering and reverse-engineering project.
-
-The repository will document the hardware, protocol investigation, software architecture, test results, and practical construction steps as the project develops.
-
-The distinction between experimentally verified behaviour, documented technical information, and planned functionality will be maintained throughout the documentation.
+The original Bose central receiver is no longer available. The surviving installation consists of one subwoofer and five satellite speakers.
 
 ## Documentation
 
-Detailed documentation will be added here as the project evolves.
+- [System Architecture](docs/architecture.md)
+- [SmartSpeaker Bus Investigation](docs/smartspeaker-bus.md)
+- [Software State Machine](docs/state-machine.md) — design documentation; implementation status to be verified.
+- [Hardware and Construction](docs/hardware.md) — planned.
+- [3D-Printed Enclosure](docs/enclosure.md) — planned.
 
-- [Project architecture](docs/architecture.md) - planned.
-- [SmartSpeaker Bus investigation](docs/smartspeaker-bus.md) - planned.
-- [Software state machine](docs/state-machine.md) - planned.
-- [Hardware and construction](docs/hardware.md) - planned.
-- [3D-printed enclosure](docs/enclosure.md) - planned.
+## Development Principles
 
-## Why Bose-Pi?
+Bose-Pi distinguishes between:
 
-The original receiver was destroyed by a thunderstorm. The speakers remained silent for years.
+- **Verified:** confirmed through measurements or repeatable tests.
+- **Observed:** recorded during an experiment, with interpretation still subject to investigation.
+- **Planned:** intended functionality that has not yet been verified.
 
-Now, a Raspberry Pi is being taught to speak a language that was never intended for it.
+The project does not claim to reproduce the complete Bose protocol or all original receiver functionality.
 
-**Keep the speakers. Replace the brain. Let the music play again.**
+## Acknowledgements
+
+The investigation builds on publicly available Bose service documentation and patent material, together with community reverse-engineering work, including Kenneract's Bose-Reverse-Engineering repository.
+
+AI-assisted research and development tools have also been used during the engineering process.
 
 ## Disclaimer
 
