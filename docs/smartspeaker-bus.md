@@ -68,7 +68,7 @@ The current implementation uses:
 | Serial framing | 8N1 |
 | Direction | Receive-only / passive |
 
-The sniffer captures GPIO edge events and reconstructs UART bytes from the observed signal transitions. It groups captured edges into bursts and attempts to decode complete UART frames.
+The sniffer captures GPIO edge events and reconstructs UART bytes from the observed signal transitions. It groups captured edges into bursts using a 3 ms idle interval and attempts to decode individual UART frames. These UART frames must not be confused with complete SmartSpeaker Bus protocol messages, whose boundaries and semantics remain under investigation.
 
 The active UART interface remains separate:
 
