@@ -2,68 +2,109 @@
 
 ## 1. Overview
 
-Bose-Pi aims to restore the essential functionality of a Bose Lifestyle AV18 speaker system using a Raspberry Pi and a custom hardware interface.
+Bose-Pi is an independent hardware and software reverse-engineering project. Its objective is to restore the essential functionality of a surviving Bose Lifestyle AV18/PS28 speaker installation using a Raspberry Pi 5, modern network audio, and a custom SmartSpeaker Bus interface.
 
-The design separates digital audio generation from control-bus communication.
+The architecture separates digital audio generation from control-bus communication.
 
-## 2. Main Components
+## 2. Hardware Components
 
 ### Raspberry Pi 5
 
-The Raspberry Pi acts as the central computing platform. It is intended to handle audio services, control logic, and communication with the Bose system.
+The Raspberry Pi 5 is the central computing platform. It runs Debian GNU/Linux 13 (trixie) and hosts the audio and serial communication software.
 
 ### INNO-MAKER Digi One HAT
 
-The Digi One HAT provides the S/PDIF digital audio output used to feed the Bose subwoofer.
+The Digi One provides the S/PDIF digital audio output.
 
 The original RCA connector was removed to support a compact hardware assembly.
 
-### Custom SmartSpeaker Bus Interface
+The configured ALSA device is:
 
-A custom interface board provides the electrical connection between the Raspberry Pi and the Bose SmartSpeaker Bus.
+`iec958:sndallodigione`
 
-The interface is built on a prototype breakout board and is intended to keep the bus circuitry separate from the software running on the Raspberry Pi.
+### SmartSpeaker Bus Interface
 
-### Bose Lifestyle AV18 Speaker System
+A custom hardware interface is being developed to connect the Raspberry Pi to the Bose SmartSpeaker Bus.
 
-The original central receiver was destroyed and is no longer available. The surviving system consists of one subwoofer and five satellite speakers.
+The interface design includes an SN74HC07 open-collector buffer. The circuit's final electrical characteristics and supply configuration must be documented against the actual hardware implementation.
 
-## 3. Signal Paths
+### Bose Speaker System
 
-The architecture contains two distinct paths.
+The surviving installation consists of one Bose subwoofer and five satellite speakers. The original central receiver was destroyed and is no longer available.
 
-**Digital audio path**
+## 3. Digital Audio Path
 
-AirPlay audio source → Raspberry Pi audio processing → INNO-MAKER Digi One HAT → S/PDIF → Bose subwoofer → satellite speakers.
+The configured and operational Raspberry Pi audio chain is:
 
-**Control path**
+`AirPlay 2 → Shairport Sync 5.5.2 → ALSA → INNO-MAKER Digi One → S/PDIF`
 
-Raspberry Pi → UART interface → custom electrical interface → Bose SmartSpeaker Bus.
+Shairport Sync provides the AirPlay-compatible audio service. ALSA routes the audio to the Digi One, which generates the digital output.
 
-The audio and control paths serve different purposes and must be investigated and validated independently.
+This confirms the Raspberry Pi audio-output path. Complete playback through the Bose system must be evaluated separately from the operation of the audio service itself.
 
-## 4. Software Architecture
+## 4. Control Communication Path
 
-The software is intended to separate the following responsibilities:
+The control path is separate from the audio path:
 
-- Audio service management.
-- UART communication.
+`Raspberry Pi UART → electrical interface → Bose SmartSpeaker Bus`
+
+The UART is used for serial communication and passive bus investigation.
+
+The custom electrical interface must provide appropriate signal compatibility between the Raspberry Pi GPIO and the Bose bus.
+
+The exact protocol behaviour required for reliable operation remains subject to hardware testing.
+
+## 5. UART Configuration
+
+The development platform uses the following UART connection:
+
+| Parameter | Configuration |
+|---|---|
+| Raspberry Pi | Raspberry Pi 5 |
+| Serial device | `/dev/ttyAMA0` |
+| TX signal | GPIO14, physical pin 8 |
+| RX signal | GPIO15, physical pin 10 |
+| Working bus baud rate | 4800 baud |
+| Serial framing | 8N1 |
+
+The UART settings above describe the current bus investigation configuration. The final application configuration should be checked against the deployed software.
+
+## 6. Passive Bus Sniffer
+
+The passive sniffer observes serial traffic without actively transmitting commands.
+
+Its current configuration uses 4800 baud, 8 data bits, no parity, and one stop bit.
+
+The sniffer can decode complete data bursts. Captured byte sequences are recorded independently from their interpretation, allowing protocol assumptions to be revised as further evidence becomes available.
+
+## 7. Software Responsibilities
+
+The software architecture separates the following responsibilities:
+
+- AirPlay-compatible audio service management.
+- ALSA audio output.
+- UART access and passive data capture.
 - SmartSpeaker Bus protocol handling.
-- State-machine-based control logic.
-- Detection of relevant hardware conditions.
+- Hardware detection and operational state management.
+- Diagnostics and error handling.
 
-The precise interfaces between these components will be documented as the implementation develops.
+The final state-machine behaviour must correspond to the actual implementation and verified interactions with the Bose hardware.
 
-## 5. Design Principles
+## 8. Design Principles
 
-- Preserve the existing Bose speaker installation.
-- Reproduce only the functionality required by this single-system setup.
-- Prefer experimentally verified behaviour over assumptions.
-- Keep hardware interfacing separate from protocol and application logic.
-- Document test results and distinguish verified features from planned functionality.
+- Preserve the existing speaker installation.
+- Reuse working audio hardware wherever practical.
+- Separate digital audio from control communication.
+- Keep electrical interfacing separate from protocol implementation.
+- Base protocol conclusions on repeatable tests and captured evidence.
+- Distinguish verified behaviour from interpretation and planned functionality.
 
-## 6. Development Status
+## 9. Current Status
 
-This document describes the intended architecture. Individual components and interactions must be considered implemented only when supported by the project's test results.
+The AirPlay-compatible audio service and the Raspberry Pi digital audio output path are operational.
 
-Further details will be documented in the SmartSpeaker Bus, state-machine, and hardware documentation.
+The UART configuration and passive sniffer are part of the bus investigation.
+
+The complete SmartSpeaker Bus protocol, the required startup sequence, and the final control state machine remain under investigation.
+
+Further details are maintained in the SmartSpeaker Bus and state-machine documentation.
