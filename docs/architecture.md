@@ -44,15 +44,30 @@ This confirms the Raspberry Pi audio-output path. Complete playback through the 
 
 ## 4. Control Communication Path
 
-The control path is separate from the audio path:
+The control path is separate from the digital audio path.
 
 `Raspberry Pi UART → electrical interface → Bose SmartSpeaker Bus`
 
-The UART is used for serial communication and passive bus investigation.
+The active UART interface uses:
 
-The custom electrical interface must provide appropriate signal compatibility between the Raspberry Pi GPIO and the Bose bus.
+- TX: GPIO14, physical pin 8.
+- RX: GPIO15, physical pin 10.
+- Serial device: `/dev/ttyAMA0`.
+- Working bus configuration: 4800 baud, 8N1.
 
-The exact protocol behaviour required for reliable operation remains subject to hardware testing.
+The electrical interface includes an SN74HC07N open-collector buffer for the transmit path.
+
+### Independent Passive Observation
+
+The bus is also observed through a separate passive sniffer:
+
+`Bose SmartSpeaker Bus → GPIO16 → libgpiod 2.x → byte decoder`
+
+GPIO16 (physical pin 36) captures signal edges. The sniffer reconstructs UART bytes and groups them into bursts without transmitting commands.
+
+The active UART and passive sniffer serve different purposes. Their observations can be correlated to investigate transmission timing, possible bus echo, and potential PS28 responses.
+
+The exact protocol behaviour required for reliable operation remains subject to repeatable hardware testing.
 
 ## 5. UART Configuration
 
