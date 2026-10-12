@@ -84,20 +84,34 @@ The sniffer is an observation tool. It does not transmit commands and does not, 
 
 ## 6. Observed Data
 
-The following byte sequence has been used during sniffer validation:
+The following byte sequence has been used during passive-sniffer validation:
 
 `55 00 FF A5 0B`
 
-The sequence is recorded as captured data. Its protocol meaning must be established independently.
+This sequence is recorded as captured data. Its protocol meaning has not been established by the capture alone.
 
-A separate protocol observation recorded during development is:
+A separate observation recorded during development is:
 
 - Transmitted sequence: `01 00 00 01`
 - Received sequence: `01 00 00 01 00`
 
-The final `00` has been interpreted as a possible response from the Bose system. This interpretation remains provisional until the sender, message framing, and protocol meaning are confirmed through repeatable tests.
+The received data contains the transmitted four-byte sequence followed by an additional byte, `00`.
 
-These observations must not be treated as proof that the complete SmartSpeaker Bus protocol has been decoded.
+The available observation does not establish whether the additional byte represents a PS28 response, a consequence of bus timing or capture boundaries, or another aspect of the communication.
+
+### Required Follow-Up
+
+To classify this observation reliably, further experiments should record:
+
+1. The transmitted bytes and their timestamps.
+2. The UART receive data and timing.
+3. The independent GPIO16 monitor capture.
+4. The timing between the end of transmission and subsequent bus activity.
+5. Whether the same result occurs in repeatable tests.
+
+Until these observations are correlated, the final `00` must not be classified as a confirmed PS28 response.
+
+Captured bytes, inferred message boundaries, sender classification, and protocol interpretation must remain separate in the project records.
 
 ## 7. Patent Descriptions and Real Hardware
 
