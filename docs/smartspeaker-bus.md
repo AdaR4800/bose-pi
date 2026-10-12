@@ -55,13 +55,32 @@ The baud rate reflects the current findings from the Bose-Pi investigation. It i
 
 ## 5. Passive Sniffer
 
-The passive sniffer is intended to observe bus traffic without actively transmitting commands.
+The passive sniffer observes the SmartSpeaker Bus independently of the active UART transmit path.
 
-It uses serial reception configured for 4800 baud, 8N1, and supports decoding complete data bursts.
+The current implementation uses:
 
-Captured bytes and their interpretation are kept separate. A byte sequence can be recorded with confidence even when its protocol meaning or sender is not yet fully established.
+| Parameter | Value |
+|---|---|
+| Raspberry Pi input | GPIO16 |
+| Physical pin | 36 |
+| GPIO interface | libgpiod 2.x |
+| Baud-rate assumption | 4800 |
+| Serial framing | 8N1 |
+| Direction | Receive-only / passive |
 
-The passive sniffer is an observation tool; it does not, by itself, prove that the Raspberry Pi can successfully control the Bose system.
+The sniffer captures GPIO edge events and reconstructs UART bytes from the observed signal transitions. It groups captured edges into bursts and attempts to decode complete UART frames.
+
+The active UART interface remains separate:
+
+- TX: GPIO14, physical pin 8.
+- RX: GPIO15, physical pin 10.
+- Device: `/dev/ttyAMA0`.
+
+This separation is important when analysing a shared, bidirectional bus. The active UART records serial data received through its RX input, while the passive sniffer independently observes the electrical activity on GPIO16.
+
+Neither capture method alone establishes the sender or protocol meaning of every received byte. In particular, an apparent response must be distinguished from physical echo, delayed traffic, or other bus activity.
+
+The sniffer is an observation tool. It does not transmit commands and does not, by itself, demonstrate successful control of the Bose system.
 
 ## 6. Observed Data
 
