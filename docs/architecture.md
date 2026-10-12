@@ -24,9 +24,11 @@ The configured ALSA device is:
 
 ### SmartSpeaker Bus Interface
 
-A custom hardware interface is being developed to connect the Raspberry Pi to the Bose SmartSpeaker Bus.
+A custom hardware interface connects the Raspberry Pi to the Bose SmartSpeaker Bus.
 
-The interface design includes an SN74HC07 open-collector buffer. The circuit's final electrical characteristics and supply configuration must be documented against the actual hardware implementation.
+The transmit path uses an SN74HC07N open-collector buffer. The documented electrical interface and wiring are maintained in [SmartSpeaker Bus Documentation](smartspeaker-bus.md).
+
+The active UART interface and the independent passive GPIO16 sniffer serve separate purposes. The sniffer observes bus activity without transmitting.
 
 ### Bose Speaker System
 
