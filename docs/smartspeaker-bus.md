@@ -113,13 +113,44 @@ For this reason, protocol parameters and message semantics must be based on the 
 
 ## 8. Electrical Interface
 
-The Raspberry Pi uses 3.3 V GPIO logic. An appropriate electrical interface is required between the GPIO and the Bose bus.
+The Raspberry Pi 5 uses 3.3 V GPIO logic. The SmartSpeaker Bus interface uses an SN74HC07N open-collector buffer to couple the UART transmit signal to the shared bus.
 
-The Bose-Pi hardware design includes an SN74HC07 open-collector buffer as part of the interface investigation.
+### 8.1 Current Circuit Configuration
 
-The actual circuit, supply voltage, pull-up arrangement, and resulting bus levels must be documented against the final schematic and component data sheet.
+The current project design specifies the following connections:
 
-The GPIO must not be connected directly to a bus whose electrical characteristics have not been verified as compatible.
+| Component or signal | Connection |
+|---|---|
+| SN74HC07N pin 14 (VCC) | Raspberry Pi 3.3 V |
+| SN74HC07N pin 7 (GND) | Raspberry Pi GND |
+| SN74HC07N input | Raspberry Pi UART TX, GPIO14 |
+| SN74HC07N open-collector output | Bose PS28 J1 pin 1, SmartSpeaker Bus |
+| Bose PS28 J1 pin 1 | 1 kΩ series resistor to Raspberry Pi UART RX, GPIO15 |
+| Decoupling capacitor | 100 nF between SN74HC07N VCC and GND |
+
+Unused buffer inputs must be held at defined logic levels. Unused outputs are left unconnected.
+
+### 8.2 Bus Pull-Up
+
+The current analysis of the Bose circuit diagram identifies a 10 kΩ pull-up resistor, R25, connected to the Bose-side 3.3 V supply. A 510 Ω resistor, R650, is also identified in the Bose-side SmartSpeaker signal path.
+
+The Raspberry Pi interface must not introduce a 5 V pull-up onto the Bose bus. The intended design uses the Bose-side pull-up to establish the bus HIGH level.
+
+These component references describe the current project findings and should be checked against the relevant circuit diagram and physical hardware.
+
+### 8.3 Shared Bus and Signal Observation
+
+The SmartSpeaker Bus is treated as a shared, bidirectional communication line.
+
+The UART transmit signal drives the bus through the open-collector buffer. The UART receive input observes the bus through the specified series resistor. GPIO16 provides an independent passive observation path.
+
+This arrangement supports investigation of transmitted data, physical bus activity, possible TX echo, and potential PS28 responses.
+
+### 8.4 Verification and Safety
+
+Before connecting or operating the interface, verify the assembled circuit against the schematic and component data sheet. Confirm the supply voltage, grounding, signal connections, and bus voltage levels.
+
+The exact electrical behaviour and protocol response must be established through measurements and repeatable tests. A received byte alone does not prove that the PS28 generated a valid response.
 
 ## 9. Software Responsibilities
 
