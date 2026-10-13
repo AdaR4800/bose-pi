@@ -11,7 +11,7 @@ Bose-Pi explores how a Raspberry Pi can provide network audio playback for a Bos
 - [Architecture](architecture.md) — Overall system architecture and the separation between digital audio playback and bus communication.
 - [Hardware](hardware.md) — Overview of the main components, Raspberry Pi interfaces, UART configuration, passive monitoring, and electrical design.
 - [Enclosure Design](enclosure.md) — Mechanical integration and the planned 3D-printed enclosure.
-- [Operating Mode and Serial Interface](architecture/operating-mode.md) — Normal SmartSpeaker operation, serial-interface configuration, and operating-mode restrictions.
+- [Operating Mode and Serial Interface](operating-mode.md) — Normal SmartSpeaker operation, serial-interface configuration, and operating-mode restrictions.
 
 ### Hardware Documentation
 
