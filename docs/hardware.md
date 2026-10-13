@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Bose-Pi uses a Raspberry Pi 5 to provide Apple AirPlay 2 audio playback for an existing Bose Lifestyle AV18/PS28 speaker installation and to investigate its SmartSpeaker Bus control interface.
+Bose-Pi uses a Raspberry Pi 5 to provide Apple AirPlay 2 audio playback for an existing Bose Lifestyle AV28/PS28 speaker installation and to investigate its SmartSpeaker Bus control interface.
 
 The project has two complementary goals:
 
@@ -21,7 +21,7 @@ The hardware design separates the digital audio path from the SmartSpeaker Bus i
 | SN74HC07N open-collector buffer | SmartSpeaker Bus interface | In use in the interface design |
 | Bose PS28 subwoofer and five satellite speakers | Original audio system | Existing installation |
 
-The original Bose AV18 central receiver was destroyed and is no longer available.
+The original Bose AV28 central receiver was destroyed and is no longer available.
 
 ## 3. Raspberry Pi Platform
 
