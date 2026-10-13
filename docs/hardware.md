@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Bose-Pi uses a Raspberry Pi 5 to provide network audio playback and to investigate the control interface of a surviving Bose Lifestyle AV18/PS28 speaker installation.
+Bose-Pi uses a Raspberry Pi 5 to provide network audio playback and to investigate the control interface of a surviving Bose Lifestyle AV28/PS28 speaker installation.
 
 The hardware design separates the digital audio output from the SmartSpeaker Bus interface.
 
