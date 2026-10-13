@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Bose-Pi is an independent hardware and software reverse-engineering project. Its objective is to restore the essential functionality of a surviving Bose Lifestyle AV18/PS28 speaker installation using a Raspberry Pi 5, modern network audio, and a custom SmartSpeaker Bus interface.
+Bose-Pi is an independent hardware and software reverse-engineering project. Its objective is to restore the essential functionality of a surviving Bose Lifestyle AV28/PS28 speaker installation using a Raspberry Pi 5, modern network audio, and a custom SmartSpeaker Bus interface.
 
 The architecture separates digital audio generation from control-bus communication.
 
