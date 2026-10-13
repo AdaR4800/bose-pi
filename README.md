@@ -20,6 +20,12 @@ Could a Raspberry Pi replace the missing electronics and bring the system back t
 
 That question became Bose-Pi.
 
+Bose-Pi has a second goal beyond replacing a failed central receiver: bringing modern Apple AirPlay 2 streaming to a classic Bose Lifestyle sound system that is around twenty years old.
+
+The approach is deliberately non-invasive. The Raspberry Pi provides the modern audio source and interfaces with the Bose SmartSpeaker Bus externally. The original subwoofer does not need to be opened, its internal electronics do not need to be modified, and the existing speaker installation and wiring can remain in place.
+
+This makes it possible to preserve a working legacy sound system while adding a modern way to stream music — without replacing the speakers, rewiring the installation, or dismantling the subwoofer.
+
 ## Project Goals
 
 The project aims to restore the essential functionality of the surviving Bose speaker installation without recreating the entire original receiver.
@@ -32,6 +38,8 @@ The main objectives are:
 - Develop reliable control software for the Raspberry Pi.
 - Build a compact hardware assembly and a custom 3D-printed enclosure.
 - Document the findings so that others can reproduce and understand the work.
+- Provide a non-invasive way to add Apple AirPlay 2 to a classic Bose Lifestyle system while preserving the original subwoofer hardware and existing speaker wiring.
+- Offer an alternative to the original central receiver when it fails or is no longer available, without requiring a complete replacement of the speaker installation.
 
 ## Current Status
 
