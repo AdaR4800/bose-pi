@@ -2,7 +2,7 @@
 
 This document accompanies [`build-guide.md`](build-guide.md) and the project's wiring image.
 
-![Bose Pi reference wiring diagram](../../images/bose-pi-reference-wiring.jpg)
+![Bose Pi reference wiring diagram](../images/bose-pi-reference-wiring.jpg)
 
 ## Wiring principles
 
@@ -30,6 +30,6 @@ The drawing is the authoritative reference for this project's current physical w
 
 ## Photo: Digi One connector
 
-![INNO-MAKER Digi One modification](../../images/inno-maker-digi-one-audio-mod.jpg)
+![INNO-MAKER Digi One modification](../images/inno-maker-digi-one-audio-mod.jpg)
 
 The photo shows the plug-in connection of the two S/PDIF cables (which were soldered onto the INNO-MAKER Digi One in place of the RCA plug) to the plug-in circuit board containing the SN74HC07N and the plug-in interface for the RJ45 jack. Preserve the verified pair mapping from the actual board and reference wiring.
