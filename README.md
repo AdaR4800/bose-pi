@@ -8,7 +8,7 @@ An independent hardware and software reverse-engineering project to restore a Bo
 
 ## The Story
 
-About twenty years ago, we installed a Bose Lifestyle AV18 home cinema system in our house. The installation included five satellite speakers, a subwoofer, and a central receiver. The speakers were permanently wired into the house and mounted high on the walls.
+About twenty years ago, we installed a Bose Lifestyle AV28 home cinema system in our house. The installation included five satellite speakers, a subwoofer, and a central receiver. The speakers were permanently wired into the house and mounted high on the walls.
 
 An Apple AirPort Express, connected through its optical digital output, later made it possible to stream music to the Bose receiver.
 
