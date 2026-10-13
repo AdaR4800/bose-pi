@@ -35,7 +35,7 @@ The adapter is designed to preserve the original subwoofer electronics and exist
 
 Use [Reference Wiring](reference-wiring.md) together with the drawing below. The current drawing is the project reference; the earlier drawing is retained for development history.
 
-![Bose-Pi reference wiring](../../images/bose-pi-reference-wiring.jpg)
+![Bose-Pi reference wiring](../images/bose-pi-reference-wiring.jpg)
 
 Always use the latest reference drawing when assembling or modifying the adapter.
 
@@ -84,7 +84,6 @@ The GPIO15 receiver path includes the documented 1 kΩ series resistor. The sepa
 
 The reference build removes the Digi One's original RCA connector and solders two wires to the corresponding S/PDIF output points. Those wires are routed to removable jumper connections on the Raspberry Pi interface HAT.
 
-![INNO-MAKER Digi One audio modification](../../images/inno-maker-digi-one-audio-mod.jpg)
 
 Assembly notes:
 
