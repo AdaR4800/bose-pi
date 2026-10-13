@@ -1,6 +1,6 @@
 # Reference Wiring and Connector Notes
 
-This document accompanies [`build-guide.md`](../hardware/build-guide.md) and the project's wiring image.
+This document accompanies [`build-guide.md`](build-guide.md) and the project's wiring image.
 
 ![Bose Pi reference wiring diagram](../images/bose-pi-reference-wiring.jpg)
 
