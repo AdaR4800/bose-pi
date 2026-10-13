@@ -2,7 +2,7 @@
 
 This directory contains the technical documentation for the Bose-Pi project.
 
-Bose-Pi explores how a Raspberry Pi can provide network audio playback for a Bose Lifestyle AV18/PS28 speaker installation while investigating the Bose SmartSpeaker Bus.
+Bose-Pi explores how a Raspberry Pi can provide network audio playback for a Bose Lifestyle AV28/PS28 speaker installation while investigating the Bose SmartSpeaker Bus.
 
 ## Documents
 
