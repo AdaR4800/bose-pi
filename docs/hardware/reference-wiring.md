@@ -28,8 +28,8 @@ The unused gate inputs are tied to GND; their outputs are left unconnected. Fit 
 
 The drawing is the authoritative reference for this project's current physical wiring. When documenting or rebuilding the cable, include a clear view of the actual connector orientation and verify continuity with a meter. Do not rely on cable colours or generic Ethernet pinout diagrams.
 
-## Photo: Digi One modification
+## Photo: Digi One connector
 
 ![INNO-MAKER Digi One modification](../images/inno-maker-digi-one-audio-mod.jpg)
 
-The photograph documents the physical modification, but the wire colours alone do not establish signal polarity. Preserve the verified pair mapping from the actual board and reference wiring.
+The photo shows the plug-in connection of the two S/PDIF cables (which were soldered onto the INNO-MAKER Digi One in place of the RCA plug) to the plug-in circuit board containing the SN74HC07N and the plug-in interface for the RJ45 jack. Preserve the verified pair mapping from the actual board and reference wiring.
