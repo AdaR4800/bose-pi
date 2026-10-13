@@ -120,6 +120,6 @@ The following checks are relevant when reproducing or changing the assembly:
 
 The Raspberry Pi platform, INNO-MAKER Digi One audio path, active UART configuration, and separate GPIO16 passive-monitor approach are established parts of the project.
 
-Audible playback through the PS28 has been demonstrated. SmartSpeaker Bus command interpretation and response attribution remain documented separately in the [SmartSpeaker Bus investigation](smartspeaker-bus.md) and the dated [PS28 findings report](findings/2026-10-11-ps28-findings.md).
+Audible playback through the PS28 has been demonstrated. SmartSpeaker Bus command interpretation and response attribution remain documented separately in the [SmartSpeaker Bus investigation](smartspeaker-bus.md) and the dated [PS28 findings report](../findings/2026-10-11-ps28-findings.md).
 
 The detailed build guide and reference wiring document are the primary references for reproducing the physical adapter. Keep them synchronized with any hardware changes.
