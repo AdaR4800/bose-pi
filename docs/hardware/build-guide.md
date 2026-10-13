@@ -173,7 +173,7 @@ Before attaching the adapter to the PS28:
 
 Do not change a known-good sniffer or transmitter merely to imitate another implementation. Preserve working behaviour and change it when repeatable measurements justify the change.
 
-Successful audible playback and the observed control-command sequence are documented in the [PS28 findings report](../findings/2026-10-11-ps28-findings.md).
+Successful audible playback and the observed control-command sequence are documented in the [PS28 findings report](../../findings/2026-10-11-ps28-findings.md).
 
 ## 11. Operating mode: no TAP
 
