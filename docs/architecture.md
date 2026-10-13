@@ -34,6 +34,8 @@ The active UART interface and the independent passive GPIO16 sniffer serve separ
 
 The surviving installation consists of one Bose subwoofer and five satellite speakers. The original central receiver was destroyed and is no longer available.
 
+Detailed hardware assembly and connector wiring are documented in the [Hardware Build Guide](hardware/build-guide.md) and [Reference Wiring](hardware/reference-wiring.md). The normal SmartSpeaker operating mode and serial-interface constraints are described in [Operating Mode and Serial Interface](operating-mode.md).
+
 ## 3. Digital Audio Path
 
 The configured and operational Raspberry Pi audio chain is:
