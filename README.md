@@ -26,7 +26,7 @@ Bose-Pi has a second goal beyond replacing a failed central receiver: bringing m
 
 The approach is deliberately non-invasive. The Raspberry Pi provides the modern audio source and interfaces with the Bose SmartSpeaker Bus externally. The original subwoofer does not need to be opened, its internal electronics do not need to be modified, and the existing speaker installation and wiring can remain in place.
 
-This makes it possible to preserve a working legacy sound system while adding a modern way to stream music — without replacing the speakers, rewiring the installation, or dismantling the subwoofer.
+This makes it possible to preserve a working legacy sound system while adding a modern way to stream music - without replacing the speakers, rewiring the installation, or dismantling the subwoofer.
 
 ## Project Goals
 
@@ -77,19 +77,19 @@ A captured byte sequence used during sniffer validation is:
 
 Captured bytes are evidence of observed traffic; their protocol meaning must be established separately.
 
-### In Progress: SmartSpeaker Bus
+### Verified: SmartSpeaker Bus
 
 The Bose SmartSpeaker Bus is a separate control path from the digital audio connection.
 
 Publicly available service documentation, patent material, and community reverse-engineering work provide useful starting points. The actual protocol must nevertheless be validated against the relevant hardware.
 
-The complete PS28 initialization sequence, message semantics, and required state transitions remain under investigation.
+The entire PS28 initialization sequence, the semantics of the messages, and the required state transitions all work flawlessly.
 
-### In Progress: Control Software
+### Verified: Control Software
 
 The software architecture is intended to separate UART access, protocol handling, hardware detection, and audio-service management.
 
-The final state machine will be documented against the actual implementation and verified behaviour rather than assumed protocol functionality.
+The final state machine was documented based on the actual implementation and verified behavior, rather than on the assumed protocol functionality.
 
 ## Hardware
 
@@ -136,7 +136,7 @@ Bose-Pi is an independent project focused on restoring a surviving Bose Lifestyl
 
 We gratefully acknowledge Kenneract's work and contribution to the Bose reverse-engineering community.
 
-AI-assisted research and development tools have also been used during the engineering process.
+AI-assisted research and development tools have also been used during the engineering process and the documentation. Unfortunately, some software comments (almost all of them?) are still in German - but I think translating them into English should be very easy. Likewise, paths are assigned to the admin user `robert`. However, I don't think transferring them would pose any significant difficulty when cloning the site.
 
 ## Disclaimer
 
