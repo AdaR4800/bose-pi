@@ -51,9 +51,6 @@ The controller and the standalone passive sniffer must not simultaneously claim 
 
 ## 4. SmartSpeaker Bus Availability
 
-
-## 4. SmartSpeaker Bus Availability
-
 The controller checks SmartSpeaker Bus availability at startup through
 `BoseBus.check_availability()` in `controller/bose_bus.py`.
 
