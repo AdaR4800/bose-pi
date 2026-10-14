@@ -17,7 +17,6 @@ If you want to understand or reproduce the project, read the documents in this o
 7. [Operating Mode](operating-mode.md) — Review the serial configuration and operating restrictions.
 8. [State Machine](state-machine.md) — Understand the documented system states and transitions.
 
-The [Enclosure Design](enclosure.md) document covers the mechanical integration of the hardware and should be treated separately from the electrical build instructions.
 
 ## Document Responsibilities
 
