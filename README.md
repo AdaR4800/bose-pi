@@ -6,7 +6,7 @@ An independent hardware and software reverse-engineering project to restore a Bo
 
 > Keep the speakers. Replace the brain. Let the music play again.
 
-![Bose-Pi image](../images/bose-system-upgrade-with-raspberry-pi.png)
+![Bose-Pi image](/docs/images/bose-system-upgrade-with-raspberry-pi.png)
 
 ## The Story
 
