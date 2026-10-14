@@ -31,7 +31,6 @@ The [Enclosure Design](enclosure.md) document covers the mechanical integration 
 | [Control Software](control-software.md) | Software structure and component responsibilities |
 | [Operating Mode](operating-mode.md) | Serial configuration and operating restrictions |
 | [State Machine](state-machine.md) | System states, transitions, and control behaviour |
-| [Enclosure Design](enclosure.md) | Mechanical integration and enclosure work |
 
 ## Software Tools
 
