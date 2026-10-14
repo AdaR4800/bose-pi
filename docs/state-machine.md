@@ -2,132 +2,208 @@
 
 ## 1. Purpose
 
-The Bose-Pi software combines network audio playback, UART communication, and a custom interface to the Bose SmartSpeaker Bus.
+The Bose-Pi state machine coordinates AirPlay playback events, SmartSpeaker Bus communication, and delayed Bose shutdown actions.
 
-The state machine is intended to coordinate these components without confusing audio-service availability, UART readiness, and successful communication with the Bose hardware.
+The implementation runs on a Raspberry Pi 5 and replaces selected functions of the original Bose AV28 central console in a Bose Lifestyle 28 system.
 
-This document describes the current working control design.
+The state machine coordinates the following functions:
 
-## 2. Verified Components
+- AirPlay START and STOP event handling.
+- SmartSpeaker Bus availability checking.
+- Active UART communication with the Bose PS28.
+- Playback setup commands.
+- Delayed MUTE and POWER_OFF actions.
+- Cancellation of pending shutdown actions when playback starts again.
+- State and event logging.
 
-The following components have been established during development:
+Passive SmartSpeaker Bus monitoring is a separate diagnostic function.
 
-- The Raspberry Pi 5 provides the computing platform.
-- Shairport Sync 5.5.2 provides the AirPlay-compatible audio service.
-- ALSA routes audio to the INNO-MAKER Digi One.
-- The Digi One provides the S/PDIF digital audio output.
-- The UART configuration used for bus investigation is `/dev/ttyAMA0`, GPIO14 TX and GPIO15 RX.
-- The passive sniffer is configured for 4800 baud, 8N1, and can decode complete data bursts.
+## 2. Verified System Components
 
-These results establish individual parts of the system. They do not prove that the complete Bose control protocol or final state machine has been implemented.
+The documented system uses:
 
-## 3. State-Machine Responsibilities
+- Raspberry Pi 5 Model B.
+- Debian GNU/Linux 13 (trixie).
+- Shairport Sync for AirPlay playback.
+- ALSA and the INNO-MAKER Digi One HAT for digital audio output.
+- UART0 at `/dev/ttyAMA0`, using GPIO14 TX and GPIO15 RX.
+- A custom SN74HC07N open-collector interface.
+- GPIO16 for passive SmartSpeaker Bus monitoring.
 
-The control logic must keep the following responsibilities separate:
+The serial configuration is 4800 baud, 8 data bits, no parity, and 1 stop bit (8N1).
 
-1. Application initialization and configuration.
-2. Hardware-interface readiness.
-3. UART initialization and communication handling.
-4. SmartSpeaker Bus protocol processing.
-5. Audio-service readiness.
-6. Error reporting and recovery.
+The audio path and active control path are independent. The passive sniffer does not transmit Bose commands.
 
-The final implementation makes transitions explicit and provide useful diagnostic information when a component is unavailable.
+## 3. Operational States
 
-## 4. Operational States
+The following states describe the controller's operational behaviour.
 
-The following states are a design model. They are not a claim that every state already exists in the software.
-
-| State | Intended responsibility / Status |
+| State | Description |
 |---|---|
-| `INIT` | Load configuration and initialize application components. |
-| `BOSE_OFF` | Shut down PS28 to the point where only bus communication is still active  |
-| `MUTE_SENT` | Mute all speakers. |
-| `STOP_PENDIMG` | When Pose-Pi is not selected for Airplay by any Apple device |
-| `AIRPLAY_ACTIVE` | play music |
-| `IDLE` | No AirPlay playback but ready to play. |
-| `BUS_ERROR` | Record an error that prevents the affected operation from continuing normally. |
+| `INIT` | The controller initializes its configuration and required interfaces. |
+| `BOSE_UNAVAILABLE` | The Bose system is not available according to the controller's availability checks. |
+| `AVAILABLE_IDLE` | The Bose system is available and no AirPlay playback session is active. |
+| `AIRPLAY_ACTIVE` | An AirPlay playback session is active and the playback setup sequence has been executed. |
+| `STOP_PENDING` | AirPlay playback has stopped and the delayed shutdown sequence is pending. |
+| `MUTED_IDLE` | The MUTE stage has completed; POWER_OFF is still pending. |
+| `BOSE_OFF` | The POWER_OFF stage has completed. |
+| `BUS_ERROR` | A bus communication error has been detected by the relevant error-handling path. |
 
-The following figure shows the states graphically, as well as their transitions.
+The state names represent controller states. They do not imply that the Raspberry Pi itself is powered off when the controller enters `BOSE_OFF`.
 
-![StateMachine](/docs/images/system-state-machine.png)
+## 4. START Sequence
 
-## 5. Hardware Detection
+When the controller receives a new AirPlay START event, it cancels any pending STOP sequence.
 
-Hardware detection is a separate responsibility from passive bus monitoring.
+It then executes the playback setup sequence:
 
-A GPIO input has been considered for detecting the presence of the Bose connection. Its electrical polarity, active level, pull-up or pull-down arrangement, and precise meaning must be established from the actual circuit and verified through testing.
+1. Send ANTI_MUTE.
+2. Send FIVE_CHANNEL.
+3. Enter the active playback state.
+4. Record the relevant state and event information.
 
-The passive sniffer on GPIO16 observes bus signal transitions. It does not, by itself, establish whether the Bose hardware is present or operational.
+The tested command frames are:
 
-Detecting an electrical connection or observing bus activity must not be treated as proof that the Bose protocol is working.
+```text
+ANTI_MUTE:    01 00 01 00
+FIVE_CHANNEL: 05 00 05 00
+```
 
+The complete playback setup sequence has been verified on the actual Bose Lifestyle 28 installation.
 
-## 6. UART and Bus Handling
+## 5. STOP Sequence
 
-The active UART interface used for bus investigation is `/dev/ttyAMA0` at 4800 baud, 8N1.
+When the controller receives an AirPlay STOP event, it enters `STOP_PENDING` and starts the delayed shutdown sequence.
 
-The passive sniffer is a separate observation path. It captures bus signal edges through GPIO16 and reconstructs bytes without transmitting commands.
+The timers are measured from the original STOP event.
 
-The following events must be treated as distinct:
+| Time from STOP | Action | Command |
+|---:|---|---|
+| 0 seconds | Enter `STOP_PENDING` | — |
+| 5 seconds | Send MUTE | `02 00 78 7A` |
+| 10 seconds total | Send POWER_OFF | `01 00 80 81` |
 
-1. **Transmission:** The Raspberry Pi sends bytes through its UART transmit path.
-2. **UART reception:** Bytes are received through the UART receive path. Depending on the electrical interface and bus behaviour, these may include transmitted data echoed back by the bus.
-3. **Passive observation:** The GPIO16 sniffer records bus activity independently of the UART.
-4. **Protocol response:** A sequence is identified as a response only when supported by repeatable observations and sufficient evidence to distinguish it from an echo or unrelated bus traffic.
+After the MUTE stage, the controller enters `MUTED_IDLE`. After the POWER_OFF stage, it enters `BOSE_OFF`.
 
-Receiving bytes after a transmission does not, by itself, prove that the Bose PS28 generated a response. Likewise, a matching byte sequence does not establish its sender or protocol meaning.
+The complete sequence, including MUTE and POWER_OFF, has been verified on the actual hardware.
 
-For example, the observation of `01 00 00 01` during transmission and `01 00 00 01 00` in the UART receive data does not establish that the final `00` is a PS28 response.
+The POWER_OFF state describes the Bose system's operating state. AirPlay and the Raspberry Pi remain available for a subsequent playback session.
 
-Further investigation should correlate UART transmit data, UART receive data, and passive sniffer observations, including their timing. Any conclusions about echo behaviour, response timing, or protocol semantics must be based on repeatable measurements.
+## 6. Cancellation on a New START
 
-Protocol communication must remain separate from passive monitoring. The state machine must not report successful Bose communication merely because the UART opened successfully or bytes were received.
+A new START event received while the controller is in `STOP_PENDING` or `MUTED_IDLE` cancels the outstanding shutdown sequence.
 
-## 7. Audio-Service Handling
+The controller must not execute a stale timer action after the new playback session has started.
 
-The configured audio path is:
+The transition is:
 
-`AirPlay 2 → Shairport Sync 5.5.2 → ALSA → INNO-MAKER Digi One → S/PDIF`
+```text
+STOP_PENDING or MUTED_IDLE
+             |
+             | New START
+             v
+Cancel pending shutdown actions
+             |
+             v
+Send ANTI_MUTE
+             |
+             v
+Send FIVE_CHANNEL
+             |
+             v
+AIRPLAY_ACTIVE
+```
 
-Audio-service readiness should be managed independently from SmartSpeaker Bus readiness.
+This behaviour prevents a delayed MUTE or POWER_OFF action from interrupting a new playback session.
 
-A running audio service does not prove that the Bose subwoofer is ready to reproduce audio. Conversely, a detected Bose connection does not prove that the audio service is available.
+## 7. State Transitions
 
-## 8. Error Handling
+The main operational transitions are:
 
-Potential error conditions include:
+| Current state | Event or condition | Action | Next state |
+|---|---|---|---|
+| `INIT` | Initialization complete; Bose available | Complete startup checks | `AVAILABLE_IDLE` |
+| `INIT` | Bose unavailable | Record availability result | `BOSE_UNAVAILABLE` |
+| `BOSE_UNAVAILABLE` | Bose becomes available and checks succeed | Update availability | `AVAILABLE_IDLE` |
+| `AVAILABLE_IDLE` | AirPlay START | Send ANTI_MUTE and FIVE_CHANNEL | `AIRPLAY_ACTIVE` |
+| `AIRPLAY_ACTIVE` | AirPlay STOP | Start shutdown timers | `STOP_PENDING` |
+| `STOP_PENDING` | Five seconds elapsed | Send MUTE | `MUTED_IDLE` |
+| `MUTED_IDLE` | Ten seconds elapsed from STOP | Send POWER_OFF | `BOSE_OFF` |
+| `STOP_PENDING` | New AirPlay START | Cancel timers; execute START sequence | `AIRPLAY_ACTIVE` |
+| `MUTED_IDLE` | New AirPlay START | Cancel remaining shutdown timer; execute START sequence | `AIRPLAY_ACTIVE` |
+| Any applicable state | Bus communication error | Record error and handle according to the implementation | `BUS_ERROR` |
 
-- Configuration or initialization failure.
+The table describes the intended operational transitions of the documented controller. Error recovery and transitions not listed here must follow the actual implementation rather than being inferred from the state names.
+
+## 8. UART and SmartSpeaker Bus Handling
+
+The active UART interface uses `/dev/ttyAMA0` at 4800 baud, 8N1.
+
+The controller sends the required command frames through the documented electrical interface. UART transmission, UART reception, and passive GPIO monitoring are separate activities.
+
+The passive sniffer captures bus activity through GPIO16. It is used for diagnostics and protocol observation, not as the active controller.
+
+A successful UART write does not by itself prove that the PS28 executed a command. Command behaviour must be established through the verified hardware tests.
+
+Likewise, captured bytes must not be assigned a protocol meaning or sender without sufficient evidence.
+
+The electrical interface is documented in [Hardware](hardware.md) and [Reference Wiring](hardware/reference-wiring.md).
+
+## 9. Audio-Service Handling
+
+The audio path is:
+
+`AirPlay → Shairport Sync → ALSA → INNO-MAKER Digi One → S/PDIF → Bose PS28`
+
+The controller reacts to the playback-session events supplied by the configured Shairport Sync hooks.
+
+The audio service and the Bose control state are related but distinct. A running Shairport Sync service does not prove that sound is currently audible, and a Bose state transition does not by itself prove that an AirPlay stream is active.
+
+The automatic START/STOP control sequence has been verified on the actual installation.
+
+## 10. Error Handling
+
+The implementation must distinguish between the following error categories:
+
+- Application initialization failure.
 - UART initialization failure.
-- Missing or unavailable hardware.
-- Bus communication timeout.
-- Unexpected or invalid protocol data.
-- Audio-service startup failure.
+- Bose availability check failure.
+- Bus communication timeout or invalid response.
+- Audio-service failure.
+- Unexpected controller events.
 
-The implementation should record the affected component and relevant diagnostic information.
+The relevant component should record diagnostic information so that the cause can be investigated.
 
-Recovery and retry behaviour must be based on the actual protocol requirements and should avoid uncontrolled retry loops.
+An unavailable Bose system must not be treated as a successful control operation. Similarly, a running controller process must not be taken as proof of successful bus communication.
 
-## 9. Validation Strategy
+## 11. State-Machine Diagram
 
-The control design should be validated in stages:
+The state-machine diagram is maintained at:
 
-1. Verify application initialization.
-2. Verify the configured audio service independently.
-3. Verify UART initialization.
-4. Validate passive bus capture.
-5. Investigate protocol messages against the real Bose hardware.
-6. Validate any required active communication.
-7. Confirm state transitions under normal and failure conditions.
-8. Test the complete startup and playback sequence.
+[`docs/images/system-state-machine.png`](images/system-state-machine.png)
 
-Each test must distinguish direct observations from interpretations.
+![Bose-Pi software state machine](images/system-state-machine.png)
 
-## 10. Current Status
+The diagram should be kept consistent with the states, events, timer sequence, and cancellation behaviour described in this document.
 
-The Raspberry Pi audio-output path and the UART sniffer configuration have been established.
+## 12. Validation
 
-The complete Bose SmartSpeaker bus protocol, the required initialization sequence, the final behavior during hardware detection, and the complete state machine transitions could be validated even further. Currently, everything is working without errors and could be investigated further.
+The following behaviour has been verified on the actual Bose Lifestyle 28 installation:
 
-The state machine is considered complete for now, since its implementation and transitions match the results of repeatable tests.
+- AirPlay playback through the INNO-MAKER Digi One and the PS28.
+- SmartSpeaker Bus communication using UART0 at 4800 baud, 8N1.
+- Playback setup using ANTI_MUTE followed by FIVE_CHANNEL.
+- Automatic MUTE five seconds after STOP.
+- Automatic POWER_OFF ten seconds after STOP.
+- Cancellation of the pending shutdown sequence when a new START occurs.
+- Passive bus monitoring as a separate diagnostic function.
+
+The documented behaviour reflects the working project implementation. It does not claim to describe every feature of the original Bose AV28 console or the complete Bose SmartSpeaker protocol.
+
+## Related Documentation
+
+- [System Architecture](architecture.md)
+- [Hardware](hardware.md)
+- [SmartSpeaker Bus](smartspeaker-bus.md)
+- [Control Software](control-software.md)
+- [Operating Mode](operating-mode.md)
