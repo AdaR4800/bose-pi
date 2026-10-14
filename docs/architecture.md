@@ -2,66 +2,142 @@
 
 ## Overview
 
-Bose-Pi restores a single Bose Lifestyle 28 / PS28 installation without the original AV28 console. A Raspberry Pi 5 provides AirPlay audio and the subset of SmartSpeaker Bus control needed for this installation.
+Bose-Pi replaces the failed Bose AV28 central console of a Bose Lifestyle 28 system with a Raspberry Pi 5.
 
-Two independent paths are used: digital audio and system control.
+The implementation provides network audio playback and a separate interface to the Bose SmartSpeaker Bus. The original PS28 powered bass module and the existing satellite speakers remain in use.
 
-## Audio path
+The system consists of three distinct signal paths:
+
+1. Digital audio playback.
+2. Active serial communication with the SmartSpeaker Bus.
+3. Passive monitoring of bus activity.
+
+These paths have different purposes and must not be confused with one another.
+
+## 1. Audio Path
+
+The Raspberry Pi receives audio over AirPlay and forwards it to the INNO-MAKER Digi One HAT for digital output.
 
 ```text
 iPhone / Mac
-  → AirPlay
-  → Shairport Sync 5.5.2
-  → ALSA: iec958:sndallodigione
-  → INNO-MAKER Digi One
-  → S/PDIF / TOSLINK
-  → PS28
-  → five satellite speakers
+    |
+    | AirPlay
+    v
+Shairport Sync
+    |
+    | ALSA
+    v
+INNO-MAKER Digi One HAT
+    |
+    | S/PDIF digital audio
+    v
+Bose PS28
+    |
+    v
+Bose Lifestyle satellite speakers
 ```
 
-Shairport Sync stays running when playback stops. The controller does not stop or restart Shairport Sync as part of its normal STOP behaviour. Keeping the AirPlay service running means the receiver remains available after the PS28 receives POWER_OFF.
+Shairport Sync receives the AirPlay stream. ALSA provides the Linux audio interface used by the playback software. The INNO-MAKER Digi One HAT provides the S/PDIF output connected to the Bose system.
 
-## Control path
+The digital audio connection is independent of the SmartSpeaker Bus control interface.
+
+## 2. Active SmartSpeaker Bus Interface
+
+The Raspberry Pi communicates with the Bose SmartSpeaker Bus through its UART0 serial interface and an SN74HC07N open-collector interface.
 
 ```text
-Python controller
-  → /dev/ttyAMA0
-  → Raspberry Pi UART0 (GPIO14 TX / GPIO15 RX)
-  → SN74HC07N open-collector interface
-  → PS28 J1 pin 1 SmartSpeaker Bus
+Raspberry Pi 5
+    |
+    | UART0
+    | TX: GPIO14
+    | RX: GPIO15
+    v
+SN74HC07N interface
+    |
+    | Project-specific electrical interface
+    v
+Bose SmartSpeaker Bus
+    |
+    v
+Bose PS28
 ```
 
-UART configuration: 4800 baud, 8 data bits, no parity, one stop bit (8N1).
+The serial interface uses the following configuration:
 
-GPIO16 (physical pin 36) is used by the controller as an input with a 200 ms stability window. The separate passive sniffer also uses GPIO16; do not run the sniffer at the same time as the controller if both attempt to request that GPIO line. The passive sniffer source and Frame Decoder are retained as investigation tools and are not part of the active controller's systemd service.
+| Parameter | Value |
+|---|---|
+| Linux device | `/dev/ttyAMA0` |
+| Transmit | GPIO14, physical pin 8 |
+| Receive | GPIO15, physical pin 10 |
+| Baud rate | 4800 |
+| Data bits | 8 |
+| Parity | None |
+| Stop bits | 1 |
 
-## SmartSpeaker connector
+The electrical interface is described in [Hardware](hardware.md) and the [Hardware Build Guide](hardware/build-guide.md). Follow the reference wiring documentation rather than inferring connections from this logical diagram.
 
-| PS28 J1 pin (RJ45)| Function |
-|---:|---|
-| 1 | SmartSpeaker Bus |
-| 2 | GND |
-| 3 | TAP RX, unused |
-| 6 | TAP TX, unused |
-| 7 | S/PDIF signal |
-| 8 | S/PDIF return / GND |
+The cable between the interface and the PS28 is a standard network cable used for project-specific signals. It does not carry Ethernet traffic.
 
-The physical PS28 connection uses a standard network cable. The cable carries the pin assignments above; it is not an Ethernet network connection!
+## 3. Passive Bus Monitoring
 
-## Controller responsibilities
+A separate Raspberry Pi GPIO input is used to observe SmartSpeaker Bus activity.
 
-- Read AirPlay START/STOP event files from `/home/robert/bose-control/events/queue`.
-- Check that the PS28 bus is responding at startup.
-- Read GPIO16 with a 200 ms stability window.
-- On START, cancel pending STOP actions and queue the playback commands.
-- On STOP, start the delayed MUTE and POWER_OFF sequence.
-- Log state changes and command transmission attempts.
-- Run independently of the Shairport Sync process.
+```text
+Bose SmartSpeaker Bus
+    |
+    | Passive observation
+    v
+Raspberry Pi GPIO16
+    |
+    v
+PS28 sniffer
+    |
+    v
+Captured and decoded traffic
+```
 
-## Reliability principles
+The passive sniffer is used to record and inspect bus traffic. It is logically separate from the active UART communication path.
 
-- Keep audio and control paths separate.
-- Keep the passive sniffer receive-only.
-- Do not infer command success from the fact that a serial write completed; confirm the result through repeatable listening/operational tests.
-- Do not stop Shairport Sync as part of the PS28 power-off sequence.
-- Keep the current hardware wiring and the tested command sequences unchanged unless a deliberate new experiment is being documented.
+The sniffer's purpose is observation. It must not be described as an active controller or as a source of transmitted Bose commands.
+
+## 4. Hardware Components
+
+The documented implementation uses:
+
+- Raspberry Pi 5 Model B.
+- INNO-MAKER Digi One HAT for S/PDIF output.
+- GeeekPi prototype breakout board.
+- SN74HC07N open-collector buffer.
+- The existing Bose Lifestyle 28 PS28 bass module and satellite speakers.
+
+The electrical connections, component arrangement, and construction details are documented in the hardware-specific documents.
+
+## 5. Software Responsibilities
+
+The software is divided into separate responsibilities:
+
+- **Audio playback:** Receives AirPlay audio and supplies it to the ALSA playback path.
+- **Serial communication:** Provides access to UART0.
+- **Bus handling:** Processes the SmartSpeaker Bus messages required by the implementation.
+- **System control:** Coordinates the documented operating behaviour.
+- **Passive monitoring:** Captures bus activity through GPIO16.
+
+The exact implementation, service configuration, and runtime behaviour are documented in [Control Software](control-software.md) and [Operating Mode](operating-mode.md).
+
+## 6. Operating Scope
+
+Bose-Pi uses the normal SmartSpeaker operating mode. TAP mode is excluded.
+
+The project replaces selected functions of the failed AV28 console. It does not claim to reproduce every feature of the original Bose Lifestyle system.
+
+Protocol descriptions distinguish between directly observed traffic, behaviour verified on the actual hardware, and interpretations of the protocol.
+
+## Related Documentation
+
+- [Hardware](hardware.md)
+- [Hardware Build Guide](hardware/build-guide.md)
+- [Reference Wiring](hardware/reference-wiring.md)
+- [SmartSpeaker Bus](smartspeaker-bus.md)
+- [Control Software](control-software.md)
+- [Operating Mode](operating-mode.md)
+- [State Machine](state-machine.md)
