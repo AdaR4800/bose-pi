@@ -2,25 +2,28 @@
 
 ## 1. Overview
 
-Bose-Pi uses separate software components for AirPlay playback, SmartSpeaker Bus availability checks, controller state observation, and passive bus monitoring.
+Bose-Pi uses separate software components for AirPlay playback, SmartSpeaker Bus communication, playback control, and passive bus monitoring.
 
-The documented controller is currently an **observation-only implementation**. It reads GPIO16, checks SmartSpeaker Bus availability once at startup, and records the resulting state. It does not send Bose control commands, execute playback timers, or perform periodic bus polling.
+The controller processes AirPlay START/STOP events and implements the complete playback control sequence.
 
-Successful manual tests of Bose commands are documented separately in [SmartSpeaker Bus](smartspeaker-bus.md). They must not be confused with automatic controller functionality.
+On START, the controller sends ANTI_MUTE followed by FIVE_CHANNEL. On STOP, it schedules MUTE after five seconds and POWER_OFF after ten seconds in total. A new START cancels the pending STOP sequence.
+
+The complete control sequence, including automatic MUTE and POWER_OFF, has been verified on the actual Bose Lifestyle 28 system.
 
 ## 2. Runtime Components
 
 | Component | Responsibility |
 |---|---|
 | `shairport-sync.service` | AirPlay receiver and digital audio playback |
-| `bose-control.service` | Runs the observation-only controller |
-| `bose_control.py` | Reads GPIO16 and maintains the observed controller state |
-| `bus_availability.py` | Queries the PS28 status over UART at startup |
-| `bose-playback-start` | Shairport Sync hook for playback-session selection events |
-| `bose-playback-stop` | Shairport Sync hook for playback-session deselection events |
-| `ps28_sniffer_v2.py` | Existing passive SmartSpeaker Bus sniffer, maintained separately |
+| `bose-control.service` | Runs the Bose controller |
+| `bose_control.py` | Processes playback events, manages states and timers, and coordinates control actions |
+| `bus_availability.py` | Checks SmartSpeaker Bus availability at startup |
+| `bose-playback-start` | Shairport Sync hook for playback-session start events |
+| `bose-playback-stop` | Shairport Sync hook for playback-session stop events |
+| `ps28_sniffer.py` | Passive SmartSpeaker Bus sniffer |
+| `ps28_sniffer_v2.py` | Later sniffer implementation used during development |
 
-The hook scripts currently provide event logging. They do not activate Bose control commands through the scheduler.
+The controller and the passive sniffer have different responsibilities. The controller performs active bus communication; the sniffer observes bus traffic for diagnostic purposes.
 
 ## 3. Hardware and Software Configuration
 
@@ -34,15 +37,18 @@ The active UART configuration is:
 | TX | GPIO14, physical pin 8 |
 | RX | GPIO15, physical pin 10 |
 | Baud rate | 4800 |
+| Data bits | 8 |
+| Parity | None |
+| Stop bits | 1 |
 | Framing | 8N1 |
 
-The controller uses the Python `gpiod` API v2 to read GPIO16 through `/dev/gpiochip4`.
+The GPIO interface uses Python `gpiod`. GPIO16, physical pin 36, is used for the documented bus-related input.
 
-GPIO16 is configured as an input. The controller accepts a changed level only after it has remained stable for 200 ms.
+The controller and the standalone passive sniffer must not simultaneously claim the same GPIO line exclusively.
 
 ## 4. SmartSpeaker Bus Availability
 
-The module `bus_availability.py` performs a system-status query at controller startup.
+The module `bus_availability.py` checks SmartSpeaker Bus availability at controller startup.
 
 Request:
 
@@ -50,42 +56,81 @@ Request:
 0B 00 00 0B
 ```
 
-The availability check verifies the echoed request, the expected response prefix, and the XOR checksum of the response. The serial read uses a bounded timeout.
+The availability check validates the received response against the expected request echo, response prefix, and XOR checksum.
 
-Observed results in the tested setup:
+In the tested setup, a valid response is received when the PS28 is switched on. When the PS28 is switched off, no valid response is detected.
 
-- PS28 switched on: a valid response is detected.
-- PS28 switched off: no valid response is detected.
+This check provides startup availability information for the controller.
 
-The availability check runs at startup. The current controller does not repeat it periodically.
+## 5. Playback Control and State Machine
 
-## 5. Controller State Observation
+The controller responds to AirPlay START and STOP events.
 
-The controller recognises the following states:
+### START sequence
 
-| State | Meaning in the current implementation |
+When a new playback session starts:
+
+1. Any pending STOP sequence is cancelled.
+2. The controller sends the ANTI_MUTE command.
+3. The controller sends the FIVE_CHANNEL command.
+4. The controller updates its playback state and records the event.
+
+The tested command frames are:
+
+```text
+01 00 01 00
+05 00 05 00
+```
+
+### STOP sequence
+
+When playback stops:
+
+1. The controller enters the pending-stop sequence.
+2. After five seconds, it sends MUTE.
+3. After ten seconds in total, it sends POWER_OFF.
+4. The controller updates its state and records the events.
+
+The tested command frames are:
+
+```text
+02 00 78 7A
+01 00 80 81
+```
+
+### Restart during the STOP sequence
+
+If a new START event arrives before the pending STOP sequence finishes, the pending timers are cancelled. The controller then executes the START sequence.
+
+This prevents delayed MUTE or POWER_OFF commands from interrupting a new playback session.
+
+The timer intervals are measured from the STOP event: MUTE at five seconds and POWER_OFF at ten seconds in total.
+
+## 6. Controller States
+
+The controller's state machine represents the availability of the Bose system and the playback control sequence.
+
+| State | Meaning |
 |---|---|
-| `BOSE_UNAVAILABLE` | GPIO16 is stably LOW |
-| `AVAILABLE_IDLE` | GPIO16 is stably HIGH and the startup availability check succeeded |
-| `AIRPLAY_ACTIVE` | Defined state; not entered by the current observation-only implementation |
-| `STOP_PENDING` | Defined state; no STOP timer is executed |
-| `MUTED_IDLE` | Defined state; no automatic mute command is sent |
-| `BOSE_OFF` | Defined state; no automatic power-off command is sent |
-| `BUS_ERROR` | Defined state; not currently used as a controller transition |
+| `BOSE_UNAVAILABLE` | The Bose system is unavailable according to the controller's availability and input checks. |
+| `AVAILABLE_IDLE` | The Bose system is available and no playback session is active. |
+| `AIRPLAY_ACTIVE` | An AirPlay playback session is active. |
+| `STOP_PENDING` | Playback has stopped and the delayed shutdown sequence is pending. |
+| `MUTED_IDLE` | The MUTE stage has completed and the controller is waiting for the final shutdown stage. |
+| `BOSE_OFF` | The POWER_OFF stage has completed. |
+| `BUS_ERROR` | A bus communication error has been detected by the relevant error-handling path. |
 
-A HIGH GPIO16 level alone does not establish bus availability. The current implementation also requires a successful startup availability check before entering `AVAILABLE_IDLE`.
+A new START during `STOP_PENDING` cancels the pending shutdown sequence and returns the controller to active playback.
 
-The state names describe the current implementation and its defined extension points. They must not be interpreted as proof that all listed states are reachable or that their associated control behaviour is implemented.
+The state machine and its transitions are described in [State Machine](state-machine.md).
 
-See [State Machine](state-machine.md) for the state and transition documentation.
+## 7. Controller Service
 
-## 6. Controller Service
-
-The installed systemd unit is:
+The systemd unit is:
 
 `/etc/systemd/system/bose-control.service`
 
-The documented service runs the controller as user `robert` from `/home/robert/bose-control/`.
+The documented installation runs the controller as user `robert` from `/home/robert/bose-control/`.
 
 Check the service status:
 
@@ -111,11 +156,11 @@ Restart the controller:
 sudo systemctl restart bose-control.service
 ```
 
-The service status confirms whether the process is running. It does not by itself prove that the PS28 is responding or that audio is audible.
+A running service confirms that the process is active. It does not, by itself, prove that audio is audible or that the PS28 is responding correctly.
 
-## 7. AirPlay Playback
+## 8. AirPlay Playback
 
-Shairport Sync provides AirPlay playback and sends digital audio through ALSA to the INNO-MAKER Digi One HAT.
+Shairport Sync receives AirPlay audio and passes it to ALSA for output through the INNO-MAKER Digi One HAT.
 
 The documented configuration includes:
 
@@ -128,70 +173,61 @@ The documented configuration includes:
 - Output format: `S16_LE`
 - Volume control: `ignore_volume_control = "no"`
 
-The START and STOP hooks record AirPlay session-selection events. Such an event does not necessarily prove that music is currently audible.
+The START and STOP hooks pass playback-session events to the controller.
 
-Check the playback service:
-
-```bash
-systemctl is-active shairport-sync.service
-```
+A hook event represents a session-selection event. It is not necessarily proof that sound is currently audible.
 
 The AirPlay audio path has been tested successfully through the INNO-MAKER Digi One and the Bose PS28.
 
-## 8. Passive Sniffer
+## 9. Passive Sniffer
 
-The existing passive sniffer is maintained separately from the controller.
+The passive SmartSpeaker Bus sniffer is maintained separately from the active controller.
 
-The reference files used during development are:
+The project sniffer uses GPIO16 to capture bus activity and group signal transitions into bursts for inspection. Its serial timing assumption is 4800 baud, 8N1.
 
-```text
-ps28_sniffer_v1_reference.py
-ps28_sniffer_v2.py
-```
+The idle-gap setting is a software parameter for grouping captured activity. It is not proof of a protocol-defined frame boundary.
 
-The sniffer observes bus activity through GPIO16. It is not an active controller and does not establish the meaning of captured bytes merely by recording them.
+The sniffer is intended for observation and troubleshooting. It must not be run concurrently with another process that exclusively claims GPIO16.
 
-Do not run the sniffer concurrently with another process that exclusively claims GPIO16. Likewise, avoid running multiple programs that access UART0 simultaneously unless the test is specifically designed for that arrangement.
-
-## 9. Manual Command Tests
+## 10. Tested Manual Commands
 
 The following commands have been tested on the actual PS28 installation:
 
 | Frame | Observed behaviour |
 |---|---|
 | `07 00 10 17` | Selects the tested S/PDIF input |
-| `01 00 01 00` | Restores audible output in the tested setup |
-| `05 00 05 00` | Audio was reported from all speakers after the command |
-| `01 00 80 81` | Stops Bose audio output while AirPlay remains available |
+| `01 00 01 00` | ANTI_MUTE; restores the tested playback path |
+| `05 00 05 00` | FIVE_CHANNEL; tested with audible output from the speakers |
+| `02 00 78 7A` | MUTE |
+| `01 00 80 81` | POWER_OFF; stops Bose audio output while AirPlay remains available |
 
-These are manual test results. The current controller does not send these commands automatically.
+These frames are also used by the automatic playback control sequence where applicable.
 
-For the evidence and limitations associated with these tests, see [SmartSpeaker Bus](smartspeaker-bus.md).
+Observed command behaviour is documented separately from the interpretation of the complete Bose protocol.
 
-## 10. Current Functional Boundary
+## 11. Functional Summary
 
-The current software provides:
+The documented implementation provides:
 
 - AirPlay playback through the digital audio path.
-- A bounded startup query for SmartSpeaker Bus availability.
-- GPIO16 level observation with a 200 ms stability interval.
-- State logging for `BOSE_UNAVAILABLE` and `AVAILABLE_IDLE`.
-- Logging of AirPlay session-selection events.
+- Startup checking of SmartSpeaker Bus availability.
+- START/STOP event handling.
+- ANTI_MUTE followed by FIVE_CHANNEL on START.
+- Automatic MUTE five seconds after STOP.
+- Automatic POWER_OFF ten seconds after STOP.
+- Cancellation of pending STOP timers when a new START occurs.
+- Controller and playback event logging.
+- Passive SmartSpeaker Bus monitoring as a separate diagnostic function.
 
-The current software does **not** provide:
+The complete playback control sequence, including MUTE and POWER_OFF, has been verified on the actual hardware.
 
-- Automatic Bose mute or power-off commands.
-- Automatic START/STOP-driven Bose control.
-- Executed five-second or ten-second playback timers.
-- Periodic SmartSpeaker Bus polling.
-- A fully implemented state machine covering all defined states.
-
-These limitations describe the current implementation, not the capabilities of the hardware interface.
+The implementation uses normal SmartSpeaker operating mode only. TAP mode is excluded.
 
 ## Related Documentation
 
 - [System Architecture](architecture.md)
 - [Hardware](hardware.md)
+- [Hardware Build Guide](hardware/build-guide.md)
 - [SmartSpeaker Bus](smartspeaker-bus.md)
 - [Operating Mode](operating-mode.md)
 - [State Machine](state-machine.md)
