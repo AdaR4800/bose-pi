@@ -119,4 +119,3 @@ class BoseBus:
                 self._ser.close()
                 logging.info("Bose-Bus: UART geschlossen")
             self._ser = None
-
