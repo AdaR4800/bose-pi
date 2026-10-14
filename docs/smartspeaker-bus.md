@@ -1,61 +1,125 @@
 # Bose SmartSpeaker Bus
 
-## Purpose
+## 1. Overview
 
-The SmartSpeaker Bus is the control path between the original Bose system controller and the PS28 powered speaker module. Bose-Pi implements only the small subset needed for this single-system installation; it does not attempt to reproduce the full original multiroom system.
+Bose-Pi communicates with the SmartSpeaker Bus of the Bose Lifestyle 28 PS28 powered bass module through a custom Raspberry Pi interface.
 
-## Physical and serial configuration
+The interface uses UART0 and an SN74HC07N open-collector buffer for transmission. A separate GPIO input is used for passive bus monitoring.
 
-| Parameter | Working configuration |
+The project uses normal SmartSpeaker operating mode only. TAP mode is excluded.
+
+## 2. Serial Configuration
+
+The tested serial configuration is:
+
+| Parameter | Value |
 |---|---|
-| Raspberry Pi | Raspberry Pi 5 |
-| UART device | `/dev/ttyAMA0` |
-| TX | GPIO14, physical pin 8 |
-| RX | GPIO15, physical pin 10 |
+| Linux device | `/dev/ttyAMA0` |
+| Transmit | GPIO14, physical pin 8 |
+| Receive | GPIO15, physical pin 10 |
 | Baud rate | 4800 |
-| Framing | 8N1 |
-| Interface | SN74HC07N open-collector buffer |
-| PS28 bus pin | J1 pin 1 |
-| Ground | PS28 J1 pin 2 |
+| Data bits | 8 |
+| Parity | None |
+| Stop bits | 1 |
+| Format | 8N1 |
 
-The bus is a bidirectional single-wire line. The interface must preserve the Bose-side pull-up and must not introduce a 5 V pull-up onto the bus.
+The passive sniffer uses GPIO16, physical pin 36, to observe bus activity.
 
-## SN74HC07N interface
+The active UART and passive sniffer are separate functions. The sniffer is a diagnostic tool and must not be treated as the source of transmitted commands.
 
-The documented prototype wiring uses:
+## 3. Electrical Interface
 
-- SN74HC07N pin 14 (VCC) to 3.3 V.
-- SN74HC07N pin 7 to GND.
-- GPIO14 / UART TX to input 1A, pin 1.
-- Output 1Y, pin 2, to PS28 J1 pin 1.
-- PS28 J1 pin 1 to GPIO15 / UART RX through a 1 kΩ series resistor.
-- A 100 nF decoupling capacitor between pins 14 and 7.
-- A 100 µF buffer capacitor between VCC (3.3 V) and GND.  
-- Unused gate inputs tied to GND; unused outputs left unconnected.
+The transmit path uses an SN74HC07N open-collector buffer. Its output pulls the shared DATA line LOW; it does not actively drive the line HIGH.
 
-The physical interface and all wiring should be checked against the final project wiring diagram and the SN74HC07N data sheet before changes are made.
+The documented circuit includes a bus pull-up and a separate receiver path. The complete electrical connections are defined in the [Reference Wiring](hardware/reference-wiring.md).
 
-## Commands tested in the installation
+Do not connect a Raspberry Pi push-pull GPIO directly to the shared DATA line.
 
-All frames are four bytes. The last byte is the XOR of the first three bytes.
+## 4. Observed Traffic
 
-| Purpose | Frame | Evidence |
-|---|---|---|
-| Bus availability check | `0B 00 00 0B` | Controller received a valid availability response at startup |
-| Restore / anti-mute | `01 00 01 00` | Confirmed by audible playback test |
-| Five-channel mode | `05 00 05 00` | User confirmed sound from all five satellite speakers |
-| MUTE | `02 00 78 7A` | Transmitted by the active STOP timer in the final test |
-| POWER_OFF | `01 00 80 81` | Transmitted by the active STOP timer; audio stopped while AirPlay remained available |
+The following byte sequences were observed or tested on the project hardware. The byte sequences are recorded as hexadecimal values, in transmission order.
 
-The exact internal PS28 interpretation of every frame is not assumed beyond the behaviour observed in this installation.
+| Bytes | Description |
+|---|---|
+| `55 00 FF A5 0B` | Captured traffic observed during bus monitoring |
+| `0B 00 00 0B` | Tested query; response observed: `00 0C 00 F0 FC` |
+| `0B 00 05 0E` | Tested query; response observed: `00 0C 00 10 1C` |
+| `07 00 10 17` | Tested command |
+| `01 00 01 00` | Tested command |
+| `05 00 05 00` | Tested command |
+| `01 00 80 81` | Tested command that stops Bose audio output while AirPlay remains available |
 
-## Passive sniffer
+The table records measured or tested behaviour. It is not a complete protocol specification.
 
-The separate sniffer observes GPIO16 and does not transmit. It is a diagnostic tool, not part of the systemd controller service. Do not change the sniffer or Frame Decoder as part of routine operation. Avoid requesting GPIO16 for the sniffer while the controller is running, because the controller also reserves that line.
+The meaning of an individual byte or field must not be inferred from the sequence alone. In particular, a captured response should not be attributed to a particular device unless its origin has been established by the test setup.
 
-## References
+## 5. Queries and Responses
 
-- Kenneract, [Bose-Reverse-Engineering — SmartSpeakerProtocol.md](https://github.com/Kenneract/Bose-Reverse-Engineering/blob/main/SmartSpeakerProtocol.md)
-- Bose, [US8214447B2](https://patents.google.com/patent/US8214447B2/en)
+The two documented query/response pairs are:
 
-Patent and community material is reference information. Hardware-specific conclusions in this document are based on the observed Bose-Pi installation.
+```text
+Query:    0B 00 00 0B
+Response: 00 0C 00 F0 FC
+```
+
+```text
+Query:    0B 00 05 0E
+Response: 00 0C 00 10 1C
+```
+
+These pairs are useful reference observations for validating the electrical interface and serial capture.
+
+They do not, by themselves, establish the complete meaning of the command fields, response fields, or checksum rules.
+
+## 6. Tested Audio Behaviour
+
+The following command has been tested on the actual installation:
+
+```text
+01 00 80 81
+```
+
+The observed result is that Bose audio output stops while AirPlay remains available.
+
+The following command sequences have also been tested in the project setup:
+
+```text
+07 00 10 17
+01 00 01 00
+05 00 05 00
+```
+
+Their interpretation and use must follow the validated project implementation. This document does not assign additional protocol semantics beyond the recorded tests.
+
+## 7. Passive Sniffer
+
+The passive sniffer is located at:
+
+`scripts/ps28_sniffer.py`
+
+It uses GPIO16 and groups captured signal activity into bursts for inspection. The configured serial timing assumption is 4800 baud, 8N1.
+
+The sniffer's idle-gap parameter is a software setting used for burst grouping. It is not proof of a protocol-defined frame boundary.
+
+The sniffer is passive and is not the active UART controller.
+
+Do not run it concurrently with another process that claims GPIO16 exclusively.
+
+## 8. Operating Constraints
+
+- Use normal SmartSpeaker mode only.
+- Do not enter TAP mode.
+- Do not connect TAP-related contacts.
+- Do not connect a Raspberry Pi push-pull GPIO directly to the shared DATA line.
+- Use the documented electrical interface.
+- Distinguish observed bytes from interpreted protocol meanings.
+- Do not assume that a response originated from the PS28 without sufficient evidence.
+
+## 9. Related Documentation
+
+- [System Architecture](architecture.md)
+- [Hardware](hardware.md)
+- [Reference Wiring](hardware/reference-wiring.md)
+- [Control Software](control-software.md)
+- [Operating Mode](operating-mode.md)
+- [State Machine](state-machine.md)
