@@ -1,35 +1,63 @@
-# Operating Mode and Serial Interface
+# Operating Mode
 
-## Mandatory mode selection
+## Normal use
 
-**Bose Pi uses the normal Bose SmartSpeaker mode only. TAP mode is not used.**
+1. Keep the Raspberry Pi powered and connected to the home network (by LAN or WLAN).
+2. Select the Bose-Pi AirPlay receiver from an iPhone or Mac.
+3. Start music. The controller sends the PS28 playback setup commands.
+4. Stop playback when finished. Shairport Sync remains running and available for the next AirPlay session.
 
-TAP is not required for normal startup, control, playback, troubleshooting or recovery. The TAP-related contacts are left unconnected. No TAP mode-entry command may be sent by the project software.
+No manual controller start is required; `bose-control.service` starts at boot.
 
-## SmartSpeaker serial interface
+## State transitions
 
-| Parameter | Value |
-|---|---|
-| Baud rate | 4800 |
-| Data bits | 8 |
-| Parity | None |
-| Stop bits | 1 |
-| Frame | 8N1 |
-| Electrical arrangement | Bidirectional open-collector DATA line |
-| Documented pull-up | 3.3 V |
+### AirPlay START
 
-The Bose service documentation describes the SmartSpeaker and TAP serial interfaces separately. Their framing must not be confused. The SmartSpeaker path uses 8N1; TAP is outside this project's scope.
+The controller cancels any pending STOP timer and sends these frames in order:
 
-## Hardware interface
+| Name | Frame | Tested purpose |
+|---|---|---|
+| ANTI_MUTE | `01 00 01 00` | Restore audible state / clear mute |
+| FIVE_CHANNEL | `05 00 05 00` | Select the tested five-speaker mode |
 
-- Raspberry Pi GPIO14 / UART0 TX drives the input of the SN74HC07N.
-- SN74HC07N open-collector output connects to SmartSpeaker DATA.
-- Raspberry Pi GPIO15 / UART0 RX receives the bus.
-- GPIO16 is reserved for the separate passive sniffer path.
-- Common ground and voltage levels must match the reference wiring.
+As a result of this sequence, the music is played through the Bose system, and the five-channel command causes sound to be heard from all the speakers.
 
-## Evidence discipline
+### AirPlay STOP
 
-A serial byte capture is evidence that bytes were observed; it does not by itself prove the semantic meaning of those bytes or that a byte is a response from the PS28. Record raw captures, direction, timing, test conditions and the exact software revision. Label protocol interpretations as hypotheses until repeatable tests support them.
+The controller starts a monotonic timer from the STOP event.
 
-Do not add periodic keepalives, retries, or extra command sequences merely because another implementation does so. Add them only when the project's own evidence demonstrates they are required.
+| Time from STOP | Action | Frame |
+|---:|---|---|
+| 0 s | Enter STOP_PENDING | — |
+| 5 s | Send MUTE | `02 00 78 7A` |
+| 10 s total | Send POWER_OFF | `01 00 80 81` |
+
+POWER_OFF is sent 10 seconds after STOP, not 10 seconds after MUTE.
+
+The MUTE frame is documented in community reverse-engineering material and is used in the tested installation. POWER_OFF was confirmed to stop audio abruptly while AirPlay continued running. The final integration test confirmed that the entire process worked as intended and that AirPlay remained available.
+
+## Cancellation behaviour
+
+If a new START event arrives during the STOP delay, the controller clears the STOP timestamp and resets both timer flags. It then schedules ANTI_MUTE and FIVE_CHANNEL. This prevents a pending STOP timer from being applied to the new playback session.
+
+## Logging
+
+Live view:
+
+```bash
+sudo journalctl -u bose-control.service -f
+```
+
+Typical sequence:
+
+```text
+AirPlay-Ereignis: STOP; Zustand: STOP_PENDING
+Timer: MUTE fällig nach 5.0 s
+Bose-Bus: sende MUTE: 02 00 78 7A
+Bose-Bus: MUTE übertragen
+Timer: POWER_OFF fällig nach 10.0 s
+Bose-Bus: sende POWER_OFF: 01 00 80 81
+Bose-Bus: POWER_OFF übertragen
+```
+
+Stop the log display with `Ctrl+C`; this does not stop the service.
