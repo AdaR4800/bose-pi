@@ -2,42 +2,46 @@
 
 ## 1. Overview
 
-Bose-Pi uses a Raspberry Pi 5 to provide Apple AirPlay 2 audio playback for an existing Bose Lifestyle AV28/PS28 speaker installation and to investigate its SmartSpeaker Bus control interface.
+Bose-Pi uses a Raspberry Pi 5 to replace the failed AV28 central console of a Bose Lifestyle 28 system.
 
-The project has two complementary goals:
+The original Bose PS28 powered bass module and five satellite speakers remain in use. The Raspberry Pi provides AirPlay audio playback through an INNO-MAKER Digi One HAT and a separate electrical interface to the Bose SmartSpeaker Bus.
 
-- Add modern network audio streaming to the original speaker installation without opening the subwoofer or modifying its internal electronics or existing speaker wiring.
-- Provide an alternative to the original central receiver, which is no longer available in this project.
+The hardware consists of three functional areas:
 
-The hardware design separates the digital audio path from the SmartSpeaker Bus interface. Audio playback and bus communication are independent functions and should be tested independently.
+- Digital audio output.
+- Active SmartSpeaker Bus communication.
+- GPIO-based monitoring and controller input.
+
+The existing PS28 is not opened or internally modified as part of this project.
 
 ## 2. Main Components
 
-| Component | Purpose | Status |
-|---|---|---|
-| Raspberry Pi 5 Model B, Revision 1.0 | Main computing platform | In use |
-| INNO-MAKER Digi One HAT | S/PDIF digital audio output | In use |
-| GeeekPi prototype breakout board | Base for custom interface circuitry | Selected |
-| SN74HC07N open-collector buffer | SmartSpeaker Bus interface | In use in the interface design |
-| Bose PS28 subwoofer and five satellite speakers | Original audio system | Existing installation |
+| Component | Purpose |
+|---|---|
+| Raspberry Pi 5 Model B, Revision 1.0 | Main computing platform |
+| INNO-MAKER Digi One HAT | S/PDIF digital audio output |
+| GeeekPi prototype breakout board | Base for the custom interface circuitry |
+| SN74HC07N | Open-collector interface for SmartSpeaker Bus transmission |
+| Bose PS28 powered bass module | Original Bose audio system |
+| Five Bose satellite speakers | Original speaker installation |
 
-The original Bose AV28 central receiver was destroyed and is no longer available.
+The original Bose AV28 central console was destroyed by an indirect lightning strike and is no longer available.
 
 ## 3. Raspberry Pi Platform
 
 The recorded development environment is:
 
-- Debian GNU/Linux 13 (trixie).
-- Linux kernel `6.18.50+rpt-rpi-2712`.
-- Python 3.13.5.
-- PySerial 3.5.
-- Python `gpiod` bindings using the libgpiod 2.x API.
+- Operating system: Debian GNU/Linux 13 (trixie).
+- Kernel: `6.18.50+rpt-rpi-2712`.
+- Python: 3.13.5.
+- PySerial: 3.5.
+- GPIO access: Python `gpiod`, using the libgpiod 2.x API.
 
-The Raspberry Pi provides separate interfaces for digital audio, active serial communication, and passive bus observation.
+The exact software configuration and installed services are described in the software documentation.
 
 ## 4. Digital Audio Interface
 
-The INNO-MAKER Digi One HAT provides the S/PDIF digital audio output.
+The INNO-MAKER Digi One HAT provides the digital audio output to the Bose PS28.
 
 The configured ALSA device is:
 
@@ -45,81 +49,102 @@ The configured ALSA device is:
 
 The operational audio path is:
 
-`Apple AirPlay 2 → Shairport Sync 5.5.2 → ALSA → INNO-MAKER Digi One → S/PDIF → Bose PS28`
+`AirPlay → Shairport Sync → ALSA → INNO-MAKER Digi One → S/PDIF → Bose PS28`
 
-Audible playback through the PS28 has been demonstrated. AirPlay volume control also worked with the Shairport Sync configuration set to `ignore_volume_control = "no"`.
+Audible playback through the PS28 has been verified.
 
-The original RCA connector was removed to reduce the height and bulk of the assembly.
+The original RCA connector on the Digi One was removed. Two wires connect the S/PDIF output to removable jumper connections on the interface board.
 
-See the [Hardware Build Guide](hardware/build-guide.md) and [Reference Wiring](hardware/reference-wiring.md) for physical integration details.
+Refer to the [Hardware Build Guide](hardware/build-guide.md) and [Reference Wiring](hardware/reference-wiring.md) for the physical implementation.
 
 ## 5. Active UART Interface
 
-The active UART used for SmartSpeaker Bus communication is configured as follows:
+The Raspberry Pi communicates with the Bose SmartSpeaker Bus through UART0 and the SN74HC07N interface.
 
-| Signal | Raspberry Pi connection |
+| Parameter | Configuration |
 |---|---|
-| UART device | `/dev/ttyAMA0` |
-| TXD0 | GPIO14, physical pin 8 |
-| RXD0 | GPIO15, physical pin 10 |
-| Serial configuration | 4800 baud, 8N1 |
+| Linux device | `/dev/ttyAMA0` |
+| UART transmit | GPIO14, physical pin 8 |
+| UART receive | GPIO15, physical pin 10 |
+| Baud rate | 4800 |
+| Data bits | 8 |
+| Parity | None |
+| Stop bits | 1 |
+| Format | 8N1 |
 
-The Raspberry Pi exposes other serial devices. Do not change the UART device or pin configuration without checking the active configuration and GPIO mapping.
+The UART device and GPIO mapping are part of the tested hardware configuration. Do not substitute another serial device without checking the Raspberry Pi configuration and the actual wiring.
 
-The UART is used for active serial communication. Its transmitted and received bytes must not automatically be interpreted as proof of a PS28 response: echo, bus activity, and actual responses need to be distinguished.
+The SN74HC07N is supplied with 3.3 V in the documented interface circuit. Its open-collector output is used for the SmartSpeaker Bus transmit connection.
 
-## 6. Passive SmartSpeaker Bus Monitor
+The complete electrical implementation, including the receiver path, pull-up, resistors, capacitors, and connector wiring, is defined by the hardware reference drawing.
 
-The passive sniffer observes the bus independently through GPIO16, physical pin 36.
+## 6. Passive Monitoring and GPIO16
 
-| Parameter | Value |
+GPIO16, physical pin 36, is used for bus-related input and monitoring.
+
+The project includes a passive sniffer in `scripts/ps28_sniffer.py`. It captures signal transitions and groups activity into bursts for inspection.
+
+| Parameter | Configuration |
 |---|---|
 | GPIO | GPIO16 |
 | Physical pin | 36 |
 | Capture method | GPIO edge events |
 | Baud-rate assumption | 4800 |
 | Serial framing | 8N1 |
-| Direction | Passive observation; no transmission |
+| Sniffer operation | Passive observation |
 
-The sniffer is implemented in `scripts/ps28_sniffer.py`. Its 3 ms idle-gap setting groups observed activity into bursts; this is a software grouping parameter, not proof of a protocol-defined message boundary.
+The sniffer's 3 ms idle-gap setting is a software parameter for grouping captured activity. It does not by itself establish a protocol-defined message boundary.
 
-Passive observations and active UART traffic must remain distinguishable in logs and documentation.
+**GPIO16 resource constraint:** The active controller and the standalone passive sniffer both use GPIO16. Do not run them simultaneously if both attempt to claim the same GPIO line. The sniffer is a diagnostic tool and is not part of the active controller's systemd service.
+
+Captured traffic must be distinguished from transmitted commands and from responses whose origin has not been independently established.
 
 ## 7. SmartSpeaker Bus Electrical Interface
 
-The interface uses an SN74HC07N open-collector buffer to couple the Raspberry Pi UART to the Bose SmartSpeaker Bus.
+The interface uses an SN74HC07N open-collector buffer to transmit UART data to the SmartSpeaker Bus.
 
-The documented circuit uses a 3.3 V supply for the SN74HC07N. The detailed wiring documentation identifies the relevant bus connection, pull-up arrangement, series resistor, and decoupling capacitor.
+The documented circuit includes:
 
-Consult the [SmartSpeaker Bus documentation](smartspeaker-bus.md) and [Reference Wiring](hardware/reference-wiring.md) for the circuit details.
+- A 3.3 V supply for the SN74HC07N.
+- A 100 nF decoupling capacitor across the IC supply pins.
+- Additional 100 µF supply buffering.
+- The documented bus pull-up and series-resistor arrangement.
+- A separate UART receive path.
+- A separate GPIO16 monitoring connection.
 
-The electrical interface should be reproduced from the documented circuit and checked against the actual assembly. Do not substitute pin connections or component values without checking the circuit and device datasheet.
+The exact pin assignments and component placement must be taken from the [Reference Wiring](hardware/reference-wiring.md) and [Hardware Build Guide](hardware/build-guide.md).
 
-## 8. Wiring and Assembly
+Do not connect a Raspberry Pi push-pull GPIO directly to the shared SmartSpeaker DATA line. Do not infer the complete circuit from the abbreviated component list in this overview.
 
-The physical build documentation is maintained separately:
+## 8. PS28 Connection and Cable
 
-- [Hardware Build Guide](hardware/build-guide.md) — components, assembly steps, and validation.
-- [Reference Wiring](hardware/reference-wiring.md) — wiring diagram, GPIO assignments, and connector notes.
-- [Enclosure Design](enclosure.md) — mechanical integration and enclosure details.
+The Raspberry Pi interface connects to the PS28 using a standard network cable.
 
-The Raspberry Pi audio interface and the external SmartSpeaker Bus adapter serve separate purposes. The existing Bose subwoofer and its internal electronics are not part of the modification.
+**This cable is not an Ethernet connection.** It carries the project-specific SmartSpeaker Bus and digital audio signals.
+
+The project wiring reference identifies the relevant PS28 connector contacts, including the SmartSpeaker Bus and the S/PDIF signal pair. TAP-related contacts remain unconnected.
+
+Always verify connector orientation and continuity against the project wiring diagram before connecting the cable to the PS28. Do not rely on cable colours or a generic Ethernet pinout.
 
 ## 9. Hardware Validation
 
-The following checks are relevant when reproducing or changing the assembly:
+The following functions have been established on the project hardware:
 
-- Confirm the Raspberry Pi UART device and GPIO mapping.
-- Verify the Digi One audio output independently.
-- Check the interface wiring against the reference diagram.
-- Verify supply, ground, and signal connections against the circuit documentation.
-- Confirm that the passive monitor remains receive-only and electrically compatible with the monitored signal.
-- Test audio playback and SmartSpeaker Bus communication separately before performing an end-to-end test.
+- AirPlay audio playback through the INNO-MAKER Digi One and the Bose PS28.
+- UART0 operation using `/dev/ttyAMA0` at 4800 baud, 8N1.
+- The SN74HC07N open-collector transmit interface.
+- Passive SmartSpeaker Bus observation through GPIO16.
+- Operation of the custom interface with the normal SmartSpeaker mode.
 
-## 10. Current Status
+When reproducing the hardware, check the component placement, power connections, connector orientation, and signal paths against the reference drawing before connecting the interface to the Bose equipment.
 
-The Raspberry Pi platform, INNO-MAKER Digi One audio path, active UART configuration, and separate GPIO16 passive-monitor approach are established parts of the project.
+Test the audio and control paths independently before performing an end-to-end test.
 
-Audible playback through the PS28 has been demonstrated. SmartSpeaker Bus command interpretation and response attribution remain documented separately in the [SmartSpeaker Bus investigation](smartspeaker-bus.md) and the dated [PS28 findings report](../findings/2026-10-11-ps28-findings.md).
+## 10. Related Documentation
 
-The detailed build guide and reference wiring document are the primary references for reproducing the physical adapter. Keep them synchronized with any hardware changes.
+- [System Architecture](architecture.md)
+- [Hardware Build Guide](hardware/build-guide.md)
+- [Reference Wiring](hardware/reference-wiring.md)
+- [SmartSpeaker Bus](smartspeaker-bus.md)
+- [Control Software](control-software.md)
+- [Operating Mode](operating-mode.md)
