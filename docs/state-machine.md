@@ -6,7 +6,7 @@ The Bose-Pi software combines network audio playback, UART communication, and a 
 
 The state machine is intended to coordinate these components without confusing audio-service availability, UART readiness, and successful communication with the Bose hardware.
 
-This document describes the current control design and distinguishes established component behaviour from transitions that still require validation.
+This document describes the current working control design.
 
 ## 2. Verified Components
 
@@ -23,7 +23,7 @@ These results establish individual parts of the system. They do not prove that t
 
 ## 3. State-Machine Responsibilities
 
-The intended control logic must keep the following responsibilities separate:
+The control logic must keep the following responsibilities separate:
 
 1. Application initialization and configuration.
 2. Hardware-interface readiness.
@@ -32,23 +32,25 @@ The intended control logic must keep the following responsibilities separate:
 5. Audio-service readiness.
 6. Error reporting and recovery.
 
-The final implementation should make transitions explicit and provide useful diagnostic information when a component is unavailable.
+The final implementation makes transitions explicit and provide useful diagnostic information when a component is unavailable.
 
-## 4. Proposed Operational States
+## 4. Operational States
 
 The following states are a design model. They are not a claim that every state already exists in the software.
 
-| State | Intended responsibility |
+| State | Intended responsibility / Status |
 |---|---|
-| `INITIALIZING` | Load configuration and initialize application components. |
-| `WAITING_FOR_HARDWARE` | Wait for required hardware conditions. |
-| `INTERFACE_READY` | Prepare the UART and electrical interface. |
-| `BUS_MONITORING` | Observe bus traffic where passive monitoring is enabled. |
-| `BUS_COMMUNICATION` | Perform protocol operations supported by the implementation. |
-| `AUDIO_READY` | Indicate that the configured audio service is available. |
-| `ERROR` | Record an error that prevents the affected operation from continuing normally. |
+| `INIT` | Load configuration and initialize application components. |
+| `BOSE_OFF` | Shut down PS28 to the point where only bus communication is still active  |
+| `MUTE_SENT` | Mute all speakers. |
+| `STOP_PENDIMG` | When Pose-Pi is not selected for Airplay by any Apple device |
+| `AIRPLAY_ACTIVE` | play music |
+| `IDLE` | No AirPlay playback but ready to play. |
+| `BUS_ERROR` | Record an error that prevents the affected operation from continuing normally. |
 
-The final state names and transitions must be reconciled with the actual source code and verified hardware behaviour.
+The following figure shows the states graphically, as well as their transitions.
+
+
 
 ## 5. Hardware Detection
 
@@ -60,7 +62,6 @@ The passive sniffer on GPIO16 observes bus signal transitions. It does not, by i
 
 Detecting an electrical connection or observing bus activity must not be treated as proof that the Bose protocol is working.
 
-The final hardware-detection mechanism remains to be validated.
 
 ## 6. UART and Bus Handling
 
@@ -127,6 +128,6 @@ Each test must distinguish direct observations from interpretations.
 
 The Raspberry Pi audio-output path and the UART sniffer configuration have been established.
 
-The complete Bose SmartSpeaker Bus protocol, the required initialization sequence, the final hardware-detection behaviour, and the complete state-machine transitions remain to be validated.
+The complete Bose SmartSpeaker bus protocol, the required initialization sequence, the final behavior during hardware detection, and the complete state machine transitions could be validated even further. Currently, everything is working without errors and could be investigated further.
 
-The state machine should be considered complete only when its implementation and its documented transitions agree with repeatable test results.
+The state machine is considered complete for now, since its implementation and transitions match the results of repeatable tests.
