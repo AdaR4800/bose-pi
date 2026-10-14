@@ -50,7 +50,7 @@ The following states are a design model. They are not a claim that every state a
 
 The following figure shows the states graphically, as well as their transitions.
 
-
+![StateMachine](/docs/images/system-state-machine.png)
 
 ## 5. Hardware Detection
 
