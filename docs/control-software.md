@@ -19,7 +19,7 @@ The complete control sequence, including automatic MUTE and POWER_OFF, has been 
 | `bose-control.service` | Runs the Bose controller as a systemd service |
 | `controller/bose_control.py` | Processes playback events, monitors GPIO16, manages states and timers, and coordinates control actions |
 | `controller/bose_bus.py` | UART interface for SmartSpeaker Bus availability checks and command transmission |
-| `Shairport Sync hook scripts (installed on the Raspberry Pi) | Generate playback START/STOP events; the hook scripts are not included in this repository |
+| `Shairport Sync hook scripts (installed on the Raspberry Pi)` | Generate playback START/STOP events; the hook scripts are not included in this repository |
 | `scripts/ps28_sniffer.py` | Passive SmartSpeaker Bus sniffer |
 | `controller/tests/bus_availability_test.py` | Standalone diagnostic for bus availability and audio input status |
 | `controller/tests/bus_input_status_test.py` | Standalone diagnostic for audio input status |
