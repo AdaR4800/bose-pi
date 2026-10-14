@@ -12,16 +12,20 @@ The complete control sequence, including automatic MUTE and POWER_OFF, has been 
 
 ## 2. Runtime Components
 
+
 | Component | Responsibility |
 |---|---|
 | `shairport-sync.service` | AirPlay receiver and digital audio playback |
-| `bose-control.service` | Runs the Bose controller |
-| `bose_control.py` | Processes playback events, manages states and timers, and coordinates control actions |
-| `bus_availability.py` | Checks SmartSpeaker Bus availability at startup |
+| `bose-control.service` | Runs the Bose controller as a systemd service |
+| `controller/bose_control.py` | Processes playback events, monitors GPIO16, manages states and timers, and coordinates control actions |
+| `controller/bose_bus.py` | UART interface for SmartSpeaker Bus availability checks and command transmission |
 | `bose-playback-start` | Shairport Sync hook for playback-session start events |
 | `bose-playback-stop` | Shairport Sync hook for playback-session stop events |
-| `ps28_sniffer.py` | Passive SmartSpeaker Bus sniffer |
-| `ps28_sniffer_v2.py` | Later sniffer implementation used during development |
+| `scripts/ps28_sniffer.py` | Passive SmartSpeaker Bus sniffer |
+| `controller/tests/bus_availability_test.py` | Standalone diagnostic for bus availability and audio input status |
+| `controller/tests/bus_input_status_test.py` | Standalone diagnostic for audio input status |
+| `controller/tests/bus_status_test.py` | Standalone diagnostic for bus status |
+
 
 The controller and the passive sniffer have different responsibilities. The controller performs active bus communication; the sniffer observes bus traffic for diagnostic purposes.
 
@@ -48,7 +52,11 @@ The controller and the standalone passive sniffer must not simultaneously claim 
 
 ## 4. SmartSpeaker Bus Availability
 
-The module `bus_availability.py` checks SmartSpeaker Bus availability at controller startup.
+
+## 4. SmartSpeaker Bus Availability
+
+The controller checks SmartSpeaker Bus availability at startup through
+`BoseBus.check_availability()` in `controller/bose_bus.py`.
 
 Request:
 
@@ -56,11 +64,18 @@ Request:
 0B 00 00 0B
 ```
 
-The availability check validates the received response against the expected request echo, response prefix, and XOR checksum.
+The availability check validates the received response against the expected
+request echo, response prefix, and XOR checksum.
 
-In the tested setup, a valid response is received when the PS28 is switched on. When the PS28 is switched off, no valid response is detected.
+In the tested setup, a valid response is received when the PS28 is switched
+on. When the PS28 is switched off, no valid response is detected.
 
-This check provides startup availability information for the controller.
+This is a startup availability check, not periodic polling.
+
+The standalone diagnostic scripts in `controller/tests/` can be used for
+manual troubleshooting. They must not be run while the controller service
+is active because both use `/dev/ttyAMA0`.
+
 
 ## 5. Playback Control and State Machine
 
