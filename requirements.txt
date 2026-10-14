@@ -1,2 +1,2 @@
-# Python dependencies for the Bose-Pi passive SmartSpeaker Bus sniffer
+# Python dependencies for the passive PS28 SmartSpeaker Bus sniffer
 gpiod>=2.0,<3.0
