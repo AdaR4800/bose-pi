@@ -213,7 +213,11 @@ Audible AirPlay playback through the documented audio path has been verified on 
 
 The tested serial configuration is `/dev/ttyAMA0`, 4800 baud, 8N1. The observed responses and tested commands are documented in the SmartSpeaker Bus documentation.
 
-The current scheduler is observation-only. Do not assume that enabling the scheduler starts active bus transmission or automatically performs periodic polling.
+The active Bose-Pi controller monitors GPIO16 and processes AirPlay START and STOP events. On START, it sends the `ANTI_MUTE` and `FIVE_CHANNEL` commands. On STOP, it schedules `MUTE` after 5 seconds and `POWER_OFF` after a total of 10 seconds. A new START cancels the pending STOP sequence.
+
+At startup, the controller checks Bose bus availability using the documented status query. This is a startup check, not periodic polling.
+
+The standalone UART diagnostic scripts must not be run while the controller service is active, because both use `/dev/ttyAMA0`.
 
 ## 12. Operating Mode
 
