@@ -1,131 +1,147 @@
 # Hardware Build Guide
 
-This guide documents the reference Bose-Pi adapter for a Bose Lifestyle 28 system with AV28 console and PS28 bass module. It is intended to let another builder reproduce the external adapter without opening or modifying the Bose bass module.
+This guide documents the external Bose-Pi adapter for a Bose Lifestyle 28 system with an AV28 console and PS28 powered bass module.
 
-> **Mandatory design constraint: normal SmartSpeaker mode only. TAP mode is not used.** Do not connect the TAP contacts or send TAP mode-entry commands.
+The adapter replaces selected functions of the failed AV28 console. The PS28 remains closed and internally unmodified.
 
-## 1. What the adapter does
+> **Mandatory operating constraint: normal SmartSpeaker mode only. TAP mode is excluded.** Do not connect TAP contacts or send TAP mode-entry commands.
 
-The Raspberry Pi provides two separate functions:
+## 1. Adapter Functions
 
-1. Receives AirPlay audio and outputs digital audio through the INNO-MAKER Digi One to the PS28 S/PDIF input.
-2. Provides the Bose SmartSpeaker Bus control interface through UART and an SN74HC07N open-collector buffer.
+The adapter provides two main functions:
 
-The target installation uses a standard network cable between the adapter and the PS28's normal system connector. The cable carries project-defined Bose signals; it is not used for Ethernet networking and must not be connected to a network switch.
+1. Digital audio output from the Raspberry Pi to the Bose PS28.
+2. An electrical interface between the Raspberry Pi UART and the Bose SmartSpeaker Bus.
 
-The adapter is designed to preserve the original subwoofer electronics and existing speaker wiring.
+A separate GPIO input supports passive bus monitoring.
 
-## 2. Bill of materials
+The audio output and SmartSpeaker Bus interface are independent signal paths.
 
-| Item | Qty. | Notes |
+The cable between the adapter and the PS28 is a standard network cable used for project-specific signals. It is not an Ethernet connection and must never be connected to a network switch.
+
+## 2. Bill of Materials
+
+| Item | Quantity | Purpose |
 |---|---:|---|
-| Raspberry Pi 5 | 1 | Main controller and AirPlay receiver |
-| INNO-MAKER Digi One | 1 | S/PDIF audio output |
-| SN74HC07N, DIP-14 | 1 | Open-collector buffer for SmartSpeaker DATA |
-| 100 nF capacitor | 1 | Local supply decoupling at the SN74HC07N |
-| 100 µF capacitor | 1 | Additional supply buffering, as shown in the reference diagram |
-| 1 kΩ resistor | 1 | Series resistor in the receiver path, as shown in the reference diagram |
-| Prototype HAT / perfboard | 1 | Holds the interface circuitry and removable jumpers |
-| Jumper wires and connectors | As needed | Removable connections, including the audio pair |
-| RJ45 breakout board, 8-pin | 1 | Connector for the cable between Bose-Pi and PS28 |
-| Standard network cable | 1 | Multi-conductor cable; not Ethernet networking |
-| Suitable Raspberry Pi power supply | 1 | Must support the Pi and attached HATs |
+| Raspberry Pi 5 Model B | 1 | Main computing platform |
+| INNO-MAKER Digi One HAT | 1 | S/PDIF digital audio output |
+| SN74HC07N, DIP-14 | 1 | Open-collector buffer |
+| 100 nF capacitor | 1 | Local supply decoupling |
+| 100 µF capacitor | 1 | Additional supply buffering |
+| 1 kΩ resistor | 1 | Series resistor in the documented receiver path |
+| Prototype HAT / perfboard | 1 | Interface circuit and removable connections |
+| Jumper wires and connectors | As required | Electrical connections |
+| 8-pin RJ45 breakout board | 1 | Cable connection to the PS28 |
+| Standard network cable | 1 | Multi-conductor signal cable |
+| Suitable Raspberry Pi power supply | 1 | Power for the Raspberry Pi and attached hardware |
 
-## 3. Reference wiring diagram
+The component arrangement and electrical connections must match the project's reference wiring diagram.
 
-Use [Reference Wiring](reference-wiring.md) together with the drawing below. The current drawing is the project reference; the earlier drawing is retained for development history.
+## 3. Reference Wiring
+
+Use the following documents together:
+
+- [Reference Wiring and Connector Notes](reference-wiring.md)
+- [Reference Wiring Diagram](../images/bose-pi-reference-wiring.jpg)
 
 ![Bose-Pi reference wiring](../images/bose-pi-reference-wiring.jpg)
 
-Always use the latest reference drawing when assembling or modifying the adapter.
+The reference diagram defines the physical connections for the documented build. Do not substitute a generic Ethernet pinout or infer connector contact numbering from cable colours.
 
-## 4. Raspberry Pi signal assignments
+## 4. Raspberry Pi Connections
 
-| Raspberry Pi signal | Purpose |
-|---|---|
-| GPIO14 / UART0 TX | Transmit data into the SN74HC07N input |
-| GPIO15 / UART0 RX | Receive SmartSpeaker Bus data through the documented receiver path |
-| GPIO16 | Separate passive bus sniffer input |
-| 3.3 V | SN74HC07N supply |
-| GND | Common signal reference |
+The documented UART and monitoring assignments are:
 
-These assignments reflect the current project configuration. UART0 must be routed to GPIO14/15, and the Linux serial console must not transmit boot or login text on the bus.
+| Raspberry Pi signal | Physical pin | Function |
+|---|---:|---|
+| GPIO14 / UART0 TX | 8 | UART transmit to the SN74HC07N input |
+| GPIO15 / UART0 RX | 10 | UART receive path |
+| GPIO16 | 36 | Passive bus monitoring input |
+| 3.3 V | 1 or 17 | SN74HC07N supply |
+| GND | As shown in the diagram | Common signal reference |
 
-Verify the active UART configuration on the actual Raspberry Pi before connecting the Bose equipment.
+The UART device used by the tested software is `/dev/ttyAMA0`.
 
-The GPIO16 passive sniffer is a separate receive-only observation path. It must not be confused with the active UART interface.
+The serial console must not transmit boot or login text through the UART connected to the Bose interface.
 
-## 5. Assemble the SN74HC07N interface
+Verify the UART configuration and GPIO mapping on the actual Raspberry Pi before connecting the interface to the PS28.
 
-The SN74HC07N is a hex buffer with open-collector outputs. The project uses it so the Raspberry Pi can pull the shared DATA line LOW without actively driving the line HIGH.
+## 5. Assemble the SN74HC07N Interface
+
+The SN74HC07N is a hex buffer with open-collector outputs. The documented circuit uses it to pull the shared SmartSpeaker DATA line LOW without actively driving the line HIGH.
 
 | SN74HC07N pin | Connection |
 |---|---|
-| 14 | Raspberry Pi 3.3 V |
+| 1 | GPIO14 / UART0 TX |
+| 2 | SmartSpeaker DATA line |
 | 7 | GND |
-| 1 | GPIO14 / UART TX |
-| 2 | SmartSpeaker DATA bus |
+| 14 | Raspberry Pi 3.3 V |
 
-Assembly requirements:
+### Assembly requirements
 
-- Place the 100 nF decoupling capacitor directly between pins 14 and 7.
-- Fit the 100 µF capacitor with the correct polarity if an electrolytic type is used.
-- Tie unused gate inputs to GND, as shown in the reference drawing. Leave their outputs unconnected.
-- The documented circuit uses a 3.3 V bus pull-up. Do not add another pull-up without a demonstrated electrical reason.
-- Do not connect a Raspberry Pi push-pull GPIO directly to the shared SmartSpeaker DATA line.
+- Fit a 100 nF decoupling capacitor directly between pins 14 and 7.
+- Fit the documented 100 µF supply-buffering capacitor, observing polarity if an electrolytic capacitor is used.
+- Tie all unused gate inputs to GND. Leave their outputs unconnected.
+- Preserve the documented 3.3 V bus pull-up arrangement.
+- Do not add another pull-up without a demonstrated electrical reason.
+- Never connect a Raspberry Pi push-pull GPIO directly to the shared SmartSpeaker DATA line.
 
-The known circuit documentation identifies R25 as a 10 kΩ pull-up and R650 as a 510 Ω component in the signal path. Preserve the documented arrangement; do not assume that these components are interchangeable or that their functions can be inferred from resistance values alone.
+The documented circuit identifies R25 as a 10 kΩ pull-up and R650 as a 510 Ω component in the signal path. Preserve their positions and connections as shown in the reference diagram.
 
-The GPIO15 receiver path includes the documented 1 kΩ series resistor. The separate GPIO16 passive-sniffer path must follow the reference drawing and the known-good physical build.
+The receiver path includes the documented 1 kΩ series resistor. GPIO15 and GPIO16 connections must follow the reference diagram and the known-good physical build.
 
-**Do not infer missing connections from this abbreviated pin table alone.** Use the reference wiring drawing for the complete circuit.
+**The pin table above is not a complete schematic.** Use the reference diagram for the complete circuit, including all resistors, capacitors, signal paths, and connector contacts.
 
-## 6. Modify the INNO-MAKER Digi One audio output
+## 6. Modify the INNO-MAKER Digi One Audio Output
 
-The reference build removes the Digi One's original RCA connector and solders two wires to the corresponding S/PDIF output points. Those wires are routed to removable jumper connections on the Raspberry Pi interface HAT.
+The reference build removes the Digi One's original RCA connector and connects two insulated wires to the corresponding S/PDIF output points.
 
+![INNO-MAKER Digi One audio modification](../images/inno-maker-digi-one-audio-mod.jpg)
 
-Assembly notes:
+Assembly procedure:
 
-1. Identify the two S/PDIF output points on the exact Digi One board revision.
-2. Remove the RCA connector without damaging nearby pads or traces.
-3. Solder two insulated wires to the same electrical output points used by the original connector.
-4. Provide strain relief and insulation so the wires cannot short to the board or move during handling.
-5. Route the wires to the HAT's removable jumper connections.
-6. Check continuity and the absence of shorts before connecting the audio pair to the Bose cable.
+1. Identify the two S/PDIF output points on the actual Digi One board revision.
+2. Remove the original RCA connector without damaging nearby pads or traces.
+3. Solder two insulated wires to the corresponding electrical output points.
+4. Insulate the connections and provide strain relief.
+5. Route the wires to the removable jumper connections on the interface HAT.
+6. Check continuity and verify that neither signal is shorted to ground or a supply rail.
 
-The PS28 input is described in the referenced Bose documentation as a transformer-coupled differential S/PDIF interface. Preserve the intended signal pair and mapping. Do not arbitrarily connect either signal wire to ground.
+The PS28 input uses a transformer-coupled differential S/PDIF interface as described in the referenced Bose documentation. Preserve the verified signal-pair mapping.
 
-## 7. Cable and Bose connector
+Do not arbitrarily connect either S/PDIF signal wire to ground.
 
-Use a standard network cable between the Bose-Pi adapter and the PS28's normal system connector. In this project it is only a convenient multi-conductor cable; the signals are not Ethernet.
+## 7. Cable and PS28 Connector
 
-The project reference drawing identifies the following logical connections:
+Use a standard network cable between the Bose-Pi adapter and the PS28's normal system connector.
 
-- SmartSpeaker DATA to the open-collector interface and documented receive paths.
-- Signal ground/reference as shown in the drawing.
-- The two S/PDIF output wires to the designated audio contacts, shown as positions 7 and 8 in the reference diagram.
-- TAP-related contacts remain unconnected.
+The cable carries project-specific signals rather than Ethernet traffic.
 
-**Use the latest project wiring diagram as the build reference.**
+The reference diagram defines:
 
-Connector contact numbering depends on viewing orientation. Do not determine pin numbers from cable colours, a generic Ethernet pinout, or a connector viewed from the opposite side. Check continuity end-to-end before connecting the cable to the PS28.
+- SmartSpeaker DATA and the associated interface connections.
+- Signal ground/reference.
+- The two S/PDIF wires, connected to positions 7 and 8 as shown in the project drawing.
+- TAP-related contacts, which remain unconnected.
 
-## 8. Serial configuration
+Connector contact numbering depends on viewing orientation. Confirm the connector orientation and check cable continuity with a meter before connecting the adapter to the PS28.
 
-The documented SmartSpeaker serial settings are:
+Do not rely on cable colours or a generic Ethernet pinout.
+
+## 8. UART Configuration
+
+The tested serial configuration is:
 
 | Parameter | Value |
 |---|---|
+| Linux device | `/dev/ttyAMA0` |
 | Baud rate | 4800 |
 | Data bits | 8 |
 | Parity | None |
 | Stop bits | 1 |
 | Framing | 8N1 |
-| Electrical interface | Shared open-collector DATA bus |
-| Documented pull-up | 3.3 V |
 
-UART configuration example:
+Example configuration using PySerial:
 
 ```python
 import serial
@@ -140,54 +156,77 @@ ser = serial.Serial(
 )
 ```
 
-The device path must match the verified system configuration. This example configures the UART; it is not a complete implementation of the Bose protocol.
+This example configures the UART only. It is not a complete implementation of the Bose protocol or the system controller.
 
-Control software should use the commands and timing behaviour established by project measurements and documented findings.
+## 9. Passive Bus Monitoring
 
-## 9. Pre-power checks
+The passive sniffer is implemented in `scripts/ps28_sniffer.py`.
 
-Before attaching the adapter to the PS28:
+It uses GPIO16 (physical pin 36) and the GPIO interface to capture bus activity. The configured serial timing assumption is 4800 baud, 8N1.
 
-- [ ] Confirm SN74HC07N pin 14 is at 3.3 V and pin 7 is GND.
-- [ ] Confirm the 100 nF capacitor is fitted close to the IC supply pins.
-- [ ] Confirm the 100 µF capacitor polarity, if applicable.
-- [ ] Confirm unused SN74HC07N gate inputs are tied to GND.
-- [ ] Confirm GPIO14 TX reaches IC pin 1 and IC pin 2 reaches SmartSpeaker DATA.
-- [ ] Confirm the documented pull-up and receiver resistor paths match the reference drawing.
-- [ ] Confirm GPIO15 receive and GPIO16 passive-sniffer paths match the reference build.
-- [ ] Confirm the Digi One audio pair has no short to ground or to the supply rails.
-- [ ] Confirm the cable is wired to the project-defined signals, not Ethernet.
-- [ ] Confirm TAP contacts are not connected.
-- [ ] Confirm no Raspberry Pi GPIO is exposed to an unsafe voltage.
-- [ ] Check cable continuity and connector orientation before connecting to the PS28.
+The sniffer groups captured activity into bursts using an idle-gap setting. This software grouping parameter must not be interpreted as proof of a protocol-defined message boundary.
 
-## 10. First start and validation
+GPIO15 and GPIO16 are connected through the documented receiver arrangement, including the 1 kΩ series resistor.
 
-1. Start the Raspberry Pi with the passive sniffer enabled.
-2. Observe the bus without transmitting and preserve the capture.
-3. Check the observed idle level and serial timing.
-4. Enable the established SmartSpeaker control implementation.
-5. Test the Digi One S/PDIF audio path separately.
-6. Test the complete AirPlay-to-PS28 audio path.
-7. Record the software revision, wiring revision, test result, and relevant captured bytes in the project evidence log.
+The passive sniffer is a diagnostic tool. It is not the active UART transmitter and must not be described as transmitting Bose commands.
 
-Do not change a known-good sniffer or transmitter merely to imitate another implementation. Preserve working behaviour and change it when repeatable measurements justify the change.
+Avoid conflicting GPIO ownership when running diagnostic tools. Do not start multiple processes that request the same GPIO line exclusively.
 
-Successful audible playback and the observed control-command sequence are documented in the [PS28 findings report](../../findings/2026-10-11-ps28-findings.md).
+## 10. Pre-Power Checklist
 
-## 11. Operating mode: no TAP
+Before connecting the adapter to the PS28:
 
-Bose-Pi uses normal SmartSpeaker mode exclusively. TAP is not part of the build, startup, operation, troubleshooting, or recovery procedure.
+- [ ] Verify SN74HC07N pin 14 is connected to 3.3 V.
+- [ ] Verify SN74HC07N pin 7 is connected to GND.
+- [ ] Check the 100 nF decoupling capacitor.
+- [ ] Check the polarity of the 100 µF capacitor, if applicable.
+- [ ] Verify all unused SN74HC07N gate inputs are tied to GND and their outputs are unconnected.
+- [ ] Verify GPIO14 connects to IC pin 1 and IC pin 2 connects to SmartSpeaker DATA.
+- [ ] Verify the documented pull-up and receiver-resistor paths against the reference diagram.
+- [ ] Verify the GPIO15 and GPIO16 receiver/monitoring connections.
+- [ ] Check that the S/PDIF pair has no short to ground or the supply rails.
+- [ ] Verify the cable contact mapping and connector orientation.
+- [ ] Confirm the cable is not connected to an Ethernet switch.
+- [ ] Confirm that TAP contacts remain unconnected.
+- [ ] Check that no Raspberry Pi GPIO is exposed to an unsafe voltage.
 
-Leave the TAP contacts unconnected and do not send TAP mode-entry commands.
+Do not connect the adapter to the Bose equipment until the wiring and power connections have been checked.
 
-## 12. Service documentation references
+## 11. Validation
 
-Record references to the original Bose documents rather than copying full copyrighted service-manual pages into this repository:
+Validate the hardware paths independently.
+
+### Digital audio
+
+1. Start the Raspberry Pi and the configured AirPlay audio service.
+2. Verify that the INNO-MAKER Digi One provides the expected digital audio output.
+3. Test playback through the PS28 and the existing speakers.
+
+Audible AirPlay playback through the documented audio path has been verified on the project installation.
+
+### UART and SmartSpeaker Bus
+
+1. Verify the UART device and serial settings.
+2. Use the documented passive sniffer to observe bus activity when appropriate.
+3. Test bus queries only with the established project test procedure.
+4. Compare captured bytes with the documented observations.
+
+The tested serial configuration is `/dev/ttyAMA0`, 4800 baud, 8N1. The observed responses and tested commands are documented in the SmartSpeaker Bus documentation.
+
+The current scheduler is observation-only. Do not assume that enabling the scheduler starts active bus transmission or automatically performs periodic polling.
+
+## 12. Operating Mode
+
+Bose-Pi uses the normal SmartSpeaker operating mode exclusively.
+
+TAP mode is not part of the build, startup, operation, troubleshooting, or recovery procedure. Leave TAP contacts unconnected and do not send TAP mode-entry commands.
+
+## 13. Manufacturer Documentation
+
+The following documents were used as technical references:
 
 - *PS18/28/35 Troubleshooting Guide*, section 2.4, “Serial data interface, SmartSpeaker and TAP”, page 13.
 - Schematic SD267086, sheet 1 of 8.
 - Earlier comparison schematic SD254175, sheet 1 of 8.
 
-The repository should include the project's own wiring drawing and photographs, with source attribution and a clear separation between manufacturer-documented facts and project measurements.
-
+This repository documents the project's own hardware implementation and measurements. Refer to the original manufacturer documentation for the complete original circuit and service information.
