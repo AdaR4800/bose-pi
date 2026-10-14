@@ -93,7 +93,6 @@ The [`docs/`](docs/README.md) directory contains the technical documentation.
 - [Control Software](docs/control-software.md) — Software components and their responsibilities.
 - [Operating Mode](docs/operating-mode.md) — Runtime behaviour and operating conditions.
 - [State Machine](docs/state-machine.md) — System states and transitions.
-- [Enclosure Design](docs/enclosure.md) — Mechanical integration and enclosure design.
 
 ## Project Scope
 
