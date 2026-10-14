@@ -5,6 +5,7 @@
 An independent hardware and software reverse-engineering project to restore a Bose Lifestyle AV28/PS28 speaker installation using modern AirPlay audio and a custom SmartSpeaker Bus interface.
 
 > Keep the speakers. Replace the brain. Let the music play again.
+![Bose-Pi image](../images/Bose System Upgrade with Raspberry Pi.png)
 
 ## The Story
 
