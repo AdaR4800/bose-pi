@@ -1,129 +1,67 @@
 # System Architecture
 
-## 1. Overview
+## Overview
 
-Bose-Pi is an independent hardware and software reverse-engineering project. Its objective is to restore the essential functionality of a surviving Bose Lifestyle AV28/PS28 speaker installation using a Raspberry Pi 5, modern network audio, and a custom SmartSpeaker Bus interface.
+Bose-Pi restores a single Bose Lifestyle 28 / PS28 installation without the original AV28 console. A Raspberry Pi 5 provides AirPlay audio and the subset of SmartSpeaker Bus control needed for this installation.
 
-The architecture separates digital audio generation from control-bus communication.
+Two independent paths are used: digital audio and system control.
 
-## 2. Hardware Components
+## Audio path
 
-### Raspberry Pi 5
+```text
+iPhone / Mac
+  → AirPlay
+  → Shairport Sync 5.5.2
+  → ALSA: iec958:sndallodigione
+  → INNO-MAKER Digi One
+  → S/PDIF / TOSLINK
+  → PS28
+  → five satellite speakers
+```
 
-The Raspberry Pi 5 is the central computing platform. It runs Debian GNU/Linux 13 (trixie) and hosts the audio and serial communication software.
+Shairport Sync stays running when playback stops. The controller does not stop or restart Shairport Sync as part of its normal STOP behaviour. Keeping the AirPlay service running means the receiver remains available after the PS28 receives POWER_OFF.
 
-### INNO-MAKER Digi One HAT
+## Control path
 
-The Digi One provides the S/PDIF digital audio output.
+```text
+Python controller
+  → /dev/ttyAMA0
+  → Raspberry Pi UART0 (GPIO14 TX / GPIO15 RX)
+  → SN74HC07N open-collector interface
+  → PS28 J1 pin 1 SmartSpeaker Bus
+```
 
-The original RCA connector was removed to support a compact hardware assembly.
+UART configuration: 4800 baud, 8 data bits, no parity, one stop bit (8N1).
 
-The configured ALSA device is:
+GPIO16 (physical pin 36) is used by the controller as an input with a 200 ms stability window. The separate passive sniffer also uses GPIO16; do not run the sniffer at the same time as the controller if both attempt to request that GPIO line. The passive sniffer source and Frame Decoder are retained as investigation tools and are not part of the active controller's systemd service.
 
-`iec958:sndallodigione`
+## SmartSpeaker connector
 
-### SmartSpeaker Bus Interface
+| PS28 J1 pin (RJ45)| Function |
+|---:|---|
+| 1 | SmartSpeaker Bus |
+| 2 | GND |
+| 3 | TAP RX, unused |
+| 6 | TAP TX, unused |
+| 7 | S/PDIF signal |
+| 8 | S/PDIF return / GND |
 
-A custom hardware interface connects the Raspberry Pi to the Bose SmartSpeaker Bus.
+The physical PS28 connection uses a standard network cable. The cable carries the pin assignments above; it is not an Ethernet network connection!
 
-The transmit path uses an SN74HC07N open-collector buffer. The documented electrical interface and wiring are maintained in [SmartSpeaker Bus Documentation](smartspeaker-bus.md).
+## Controller responsibilities
 
-The active UART interface and the independent passive GPIO16 sniffer serve separate purposes. The sniffer observes bus activity without transmitting.
+- Read AirPlay START/STOP event files from `/home/robert/bose-control/events/queue`.
+- Check that the PS28 bus is responding at startup.
+- Read GPIO16 with a 200 ms stability window.
+- On START, cancel pending STOP actions and queue the playback commands.
+- On STOP, start the delayed MUTE and POWER_OFF sequence.
+- Log state changes and command transmission attempts.
+- Run independently of the Shairport Sync process.
 
-### Bose Speaker System
+## Reliability principles
 
-The surviving installation consists of one Bose subwoofer and five satellite speakers. The original central receiver was destroyed and is no longer available.
-
-Detailed hardware assembly and connector wiring are documented in the [Hardware Build Guide](hardware/build-guide.md) and [Reference Wiring](hardware/reference-wiring.md). The normal SmartSpeaker operating mode and serial-interface constraints are described in [Operating Mode and Serial Interface](operating-mode.md).
-
-## 3. Digital Audio Path
-
-The configured and operational Raspberry Pi audio chain is:
-
-`AirPlay 2 → Shairport Sync 5.5.2 → ALSA → INNO-MAKER Digi One → S/PDIF`
-
-Shairport Sync provides the AirPlay-compatible audio service. ALSA routes the audio to the Digi One, which generates the digital output.
-
-This confirms the Raspberry Pi audio-output path. Complete playback through the Bose system must be evaluated separately from the operation of the audio service itself.
-
-## 4. Control Communication Path
-
-The control path is separate from the digital audio path.
-
-`Raspberry Pi UART → electrical interface → Bose SmartSpeaker Bus`
-
-The active UART interface uses:
-
-- TX: GPIO14, physical pin 8.
-- RX: GPIO15, physical pin 10.
-- Serial device: `/dev/ttyAMA0`.
-- Working bus configuration: 4800 baud, 8N1.
-
-The electrical interface includes an SN74HC07N open-collector buffer for the transmit path.
-
-### Independent Passive Observation
-
-The bus is also observed through a separate passive sniffer:
-
-`Bose SmartSpeaker Bus → GPIO16 → libgpiod 2.x → byte decoder`
-
-GPIO16 (physical pin 36) captures signal edges. The sniffer reconstructs UART bytes and groups them into bursts without transmitting commands.
-
-The active UART and passive sniffer serve different purposes. Their observations can be correlated to investigate transmission timing, possible bus echo, and potential PS28 responses.
-
-The exact protocol behaviour required for reliable operation remains subject to repeatable hardware testing.
-
-## 5. UART Configuration
-
-The development platform uses the following UART connection:
-
-| Parameter | Configuration |
-|---|---|
-| Raspberry Pi | Raspberry Pi 5 |
-| Serial device | `/dev/ttyAMA0` |
-| TX signal | GPIO14, physical pin 8 |
-| RX signal | GPIO15, physical pin 10 |
-| Working bus baud rate | 4800 baud |
-| Serial framing | 8N1 |
-
-The UART settings above describe the current bus investigation configuration. The final application configuration should be checked against the deployed software.
-
-## 6. Passive Bus Sniffer
-
-The passive sniffer observes serial traffic without actively transmitting commands.
-
-Its current configuration uses 4800 baud, 8 data bits, no parity, and one stop bit.
-
-The sniffer can decode complete data bursts. Captured byte sequences are recorded independently from their interpretation, allowing protocol assumptions to be revised as further evidence becomes available.
-
-## 7. Software Responsibilities
-
-The software architecture separates the following responsibilities:
-
-- AirPlay-compatible audio service management.
-- ALSA audio output.
-- UART access and passive data capture.
-- SmartSpeaker Bus protocol handling.
-- Hardware detection and operational state management.
-- Diagnostics and error handling.
-
-The final state-machine behaviour must correspond to the actual implementation and verified interactions with the Bose hardware.
-
-## 8. Design Principles
-
-- Preserve the existing speaker installation.
-- Reuse working audio hardware wherever practical.
-- Separate digital audio from control communication.
-- Keep electrical interfacing separate from protocol implementation.
-- Base protocol conclusions on repeatable tests and captured evidence.
-- Distinguish verified behaviour from interpretation and planned functionality.
-
-## 9. Current Status
-
-The AirPlay-compatible audio service and the Raspberry Pi digital audio output path are operational.
-
-The UART configuration and passive sniffer are part of the bus investigation.
-
-The complete SmartSpeaker Bus protocol, the required startup sequence, and the final control state machine remain under investigation.
-
-Further details are maintained in the SmartSpeaker Bus and state-machine documentation.
+- Keep audio and control paths separate.
+- Keep the passive sniffer receive-only.
+- Do not infer command success from the fact that a serial write completed; confirm the result through repeatable listening/operational tests.
+- Do not stop Shairport Sync as part of the PS28 power-off sequence.
+- Keep the current hardware wiring and the tested command sequences unchanged unless a deliberate new experiment is being documented.
